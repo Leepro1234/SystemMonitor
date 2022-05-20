@@ -72,7 +72,7 @@ public class LogController {
     public String setsystemmonitoring() throws Exception {
 
 
-        return methods.setsystemmonitoring();
+        return methods.setSystemMonitoring();
 
     }
 }

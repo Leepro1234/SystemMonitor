@@ -4,15 +4,13 @@ package com.example.systemmonitor.common;
 import com.google.gson.*;
 import org.yaml.snakeyaml.Yaml;
 
-import javax.swing.text.StyledEditorKit;
 import java.io.*;
 import java.util.LinkedHashMap;
 
 public class Methods {
     public String convertYamlToJson() {
         String json="";
-        //File file = new File("C:\\logs\\logmornitoring.yml");
-        File file = new File("/logs/logmornitoring.yml");
+        File file = new File("/logs/setting/logmornitoring.yml");
         Yaml yaml = new Yaml();
 
         try {
@@ -26,27 +24,41 @@ public class Methods {
         return json;
     }
 
+    public JsonObject convertStringToJsonObject(String content){
+        JsonObject jsonObject = new Gson().fromJson(content, JsonObject.class);
 
-    public String setsystemmonitoring() throws Exception{
+        return jsonObject;
+    }
+
+    public String setSystemMonitoring() throws Exception{
         String result ="";
+        String fileName = "/logs/setting/setup";
         try{
-            //File file = new File("C:\\logs\\setup.txt");
-            File file = new File("/logs/setup");
-            FileOutputStream fileOutputStream = new FileOutputStream(file, false);
-
-            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
-            bufferedWriter.write(convertYamlToJson());
-            fileOutputStream.close();
-            bufferedWriter.close();
-             JsonObject jsonObject = convertStringToJsonObject(convertYamlToJson());
-             JsonArray logmonitoring = jsonObject.getAsJsonArray("logMonitoring");
-            for (JsonElement data: logmonitoring) {
-                //result += addLogmonitoringShell(data);
-                result += addPropertiesShell(data) + "<br/>";
+            if(!inputFIle(fileName, convertYamlToJson())) {
+                return "setup File Input Faild! ";
             }
 
+            if(!changeMod(fileName, "722")){
+                return "setup File Chmod Fail! ";
+            }
+        } catch (Exception ex) {
+            return ex.toString();
+        }
 
-             /*           getLogMonitoringSetup(logmonitoring);*/
+        try{
+            /*
+            * Shell 파일 생성
+            * proerties.sh
+            * 실행 sh
+             * 로직 sh
+             * */
+            JsonObject jsonObject = convertStringToJsonObject(convertYamlToJson());
+            JsonArray logmonitoring = jsonObject.getAsJsonArray("logMonitoring");
+            for (JsonElement data : logmonitoring) {
+                result += addFinderShell(data) + "<br/>";
+                result += addLogmonitoringShell(data) + "<br/>";
+                result += addPropertiesShell(data) + "<br/>";
+            }
 
             return result;
 
@@ -55,95 +67,75 @@ public class Methods {
         }
     }
 
-    public JsonObject convertStringToJsonObject(String content){
-        JsonObject jsonObject = new Gson().fromJson(content, JsonObject.class);
-
-        return jsonObject;
-    }
-
 
     public String addLogmonitoringShell(JsonElement system) {
-        StringBuilderPlus result = new StringBuilderPlus();
         String filename="";
         String path ="";
         String keywords ="";
-        StringBuilderPlus sh = new StringBuilderPlus();
         JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
         filename = jsonObject.get("filename").toString().replace("\"","");
         path = jsonObject.get("path").toString().replace("\"","");
 
-        sh.appendLine("filename=\"" + filename + "\"");
-        sh.appendLine("command=" + "`ps -ef | grep $filename`");
-        sh.appendLine("echo $command");
-        sh.appendLine("while read file; do");
-        sh.appendLine("      if grep -q \"tail\" <<< \"$file\"; then");
-        sh.appendLine("         echo \"Not Close Process\"");
-        sh.appendLine("      elif grep -q \"grep\" <<< \"$file\"; then");
-        sh.appendLine("         echo \"Continue...\"");
-        sh.appendLine("      elif [\"\" == \"$file\"]; then");
-        sh.appendLine("         echo \"Excuting...\"");
-        sh.appendLine("         ./test.sh");
-        sh.appendLine("         break");
-        sh.appendLine("      else");
-        sh.appendLine("         echo \"$file\"");
-        sh.appendLine("         ./test.sh");
-        sh.appendLine("      fi");
-        sh.appendLine("done < <(echo \"$command\")");
+        StringBuilderPlus sh = setLogmonitoringshString(path, filename);
+
         try{
-            //File file = new File("/logs/" + filename.split(".")[0].toString() + ".sh");
-            File file = new File("/logs/" + filename.split("\\.")[0].toString() + ".sh");
-            FileOutputStream fileOutputStream = new FileOutputStream(file, false);
-
-            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
-            bufferedWriter.write(sh.toString());
-            bufferedWriter.flush();
-            fileOutputStream.close();
-            bufferedWriter.close();
-            Process p;
-            try {
-                //이 변수에 명령어를 넣어주면 된다.
-                String[] cmd = {"/bin/bash", "-c", "chmod 722 "+ path + filename.split("\\.")[0].toString() + ".sh"};
-                p = Runtime.getRuntime().exec(cmd);
-                BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-                String line = "";
-                while ((line = br.readLine()) != null)
-                    result.append(line);
-                p.waitFor();
-                p.destroy();
-
-            } catch (Exception e) {
-                result.append(e.toString());
+            String fullPath = path + filename.split("\\.")[0].toString() + ".sh";
+            if(!inputFIle(fullPath, sh.toString())) {
+                return "LogmonitoringShell File Input Faild! ";
             }
 
-            return result.toString();
+            if(!changeMod(fullPath, "722")){
+                return "LogmonitoringShell File Chmod Fail! ";
+            }
+
+            return "addLogmonitoringShell Success! ";
 
         } catch (Exception ex) {
             return ex.toString();
         }
     }
+    public StringBuilderPlus setLogmonitoringshString(String path, String fileName){
+        String setupFileName = path + fileName.split("\\.")[0].toString() + "_setup.sh";
+        String finderFileName = fileName.split("\\.")[0].toString() + "_finder.sh";
+
+        StringBuilderPlus result = new StringBuilderPlus();
+        result.appendLine("source " + setupFileName + "");
+        result.appendLine("echo $keywords");
+
+        result.appendLine("filename=\"" + fileName + "\"");
+        result.appendLine("command=" + "`ps -ef | grep $filename | grep -v \"grep\"`");
+        result.appendLine("echo $command");
+        result.appendLine("while read file; do");
+        result.appendLine("      if grep -q \"tail\" <<< \"$file\"; then");
+        result.appendLine("         echo \"Not Close Process\"");
+        result.appendLine("      elif [\"\" == \"$file\"]; then");
+        result.appendLine("         echo \"Excuting...\"");
+        result.appendLine("         ./" + finderFileName);
+        result.appendLine("         break");
+        result.appendLine("      else");
+        result.appendLine("         echo \"Error\"");
+        result.appendLine("      fi");
+        result.appendLine("done < <(echo \"$command\")");
+
+        return result;
+    }
+
     public String addPropertiesShell(JsonElement system) {
-        StringBuilderPlus sh = new StringBuilderPlus();
         JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
         String fileName = jsonObject.get("filename").toString().replace("\"","");
+        String path = jsonObject.get("path").toString().replace("\"","");
         JsonArray keywords = jsonObject.getAsJsonArray("keywords");
 
-        String gbn = "";
-        sh.append("keywords=(");
-        for(JsonElement keyword : keywords){
-            sh.append(gbn + keyword.toString());
-            gbn = " ";
-        }
-        sh.append(")");
-
+        StringBuilderPlus sh = setLogmonitoringshString(keywords);
 
         try{
-            fileName= "/logs/" + fileName.split("\\.")[0].toString() + "_setup.sh";
+            fileName= path + fileName.split("\\.")[0].toString() + "_setup.sh";
             if(!inputFIle(fileName, sh.toString())) {
-                return "sh File Input Faild! ";
+                return "Properties File Input Faild! ";
             }
 
             if(!changeMod(fileName, "722")){
-                return "Chmod Fail! ";
+                return "Properties File Chmod Fail! ";
             }
 
             return "addPropertiesShell Success! ";
@@ -152,6 +144,64 @@ public class Methods {
             return ex.toString();
         }
     }
+    public StringBuilderPlus setLogmonitoringshString(JsonArray keywords){
+        StringBuilderPlus result = new StringBuilderPlus();
+        String gbn = "";
+        result.append("keywords=(");
+        for(JsonElement keyword : keywords){
+            result.append(gbn + keyword.toString());
+            gbn = " ";
+        }
+        result.append(")");
+        return result;
+    }
+
+    public String addFinderShell(JsonElement system) {
+        JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
+        String filename = jsonObject.get("filename").toString().replace("\"","");
+        String path = jsonObject.get("path").toString().replace("\"","");
+
+        StringBuilderPlus sh = setFindershString(path, filename);
+
+        try{
+            String fullPath = path + filename.split("\\.")[0].toString() + "_finder.sh";
+            if(!inputFIle(fullPath, sh.toString())) {
+                return "FinderShell File Input Faild! ";
+            }
+
+            if(!changeMod(fullPath, "722")){
+                return "Finder File Chmod Fail! ";
+            }
+
+            return "addFinderShell Success! ";
+
+        } catch (Exception ex) {
+            return ex.toString();
+        }
+    }
+    public StringBuilderPlus setFindershString(String path, String fileName){
+        StringBuilderPlus result = new StringBuilderPlus();
+        String setupFileName = path + fileName.split("\\.")[0].toString() + "_setup.sh";
+
+
+        result.appendLine("source " + setupFileName + "");
+        result.appendLine("echo \"Start "+fileName.split("\\.")[0].toString()+" Finder Shell !!\"");
+        result.appendLine("tail " + path + fileName + " -n0 -F | while read line;");
+        result.appendLine("do");
+        result.appendLine("     for i in ${!keywords[*]};");
+        result.appendLine("     do");
+        result.appendLine("         echo ${keywords[i]}");
+        result.appendLine("         if grep -q \"${keywords[i]}\" <<< \"$line\" ; then");
+        result.appendLine("             echo \"Send Slack !!\"");
+        result.appendLine("             #pkill -9 -P $$ tail");
+        result.appendLine("             break");
+        result.appendLine("         fi");
+        result.appendLine("     done");
+        result.appendLine("done;");
+
+        return result;
+    }
+
     public Boolean inputFIle(String filename, String content) throws Exception {
         try {
             File file = new File(filename);
