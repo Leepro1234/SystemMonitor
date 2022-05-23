@@ -5,9 +5,11 @@ import com.google.gson.*;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
+import java.security.Permission;
 import java.util.LinkedHashMap;
 
 public class Methods {
+    private String readFileFullPath ="/logs/setting/setup";
     public String convertYamlToJson() {
         String json="";
         File file = new File("/logs/setting/logmornitoring.yml");
@@ -24,21 +26,36 @@ public class Methods {
         return json;
     }
 
-    public JsonObject convertStringToJsonObject(String content){
+    public JsonObject convertStringToJsonObject(String content) throws  Exception{
         JsonObject jsonObject = new Gson().fromJson(content, JsonObject.class);
 
         return jsonObject;
     }
 
     public String setSystemMonitoring() throws Exception{
+
         String result ="";
+
+
+        /*
+        * 파일 유무 체크
+         */
+        File setup = new File(readFileFullPath);
+        if(setup.isFile()){
+            //설정된 크론탭 제거
+            result += initSetup();
+
+            //크론탭 추가
+
+        }
+
         String fileName = "/logs/setting/setup";
         try{
             if(!inputFIle(fileName, convertYamlToJson())) {
                 return "setup File Input Faild! ";
             }
 
-            if(!changeMod(fileName, "722")){
+            if(!excuteShell("chmod 722 " + fileName)){
                 return "setup File Chmod Fail! ";
             }
         } catch (Exception ex) {
@@ -84,11 +101,13 @@ public class Methods {
                 return "LogmonitoringShell File Input Faild! ";
             }
 
-            if(!changeMod(fullPath, "722")){
+            if(!excuteShell("chmod 722 " + fullPath)){
                 return "LogmonitoringShell File Chmod Fail! ";
             }
 
-            return "addLogmonitoringShell Success! ";
+
+            //크론탭 추가
+            return "addLogmonitoringShell Success! " + addCrontab(path, filename);
 
         } catch (Exception ex) {
             return ex.toString();
@@ -100,22 +119,25 @@ public class Methods {
 
         StringBuilderPlus result = new StringBuilderPlus();
         result.appendLine("source " + setupFileName + "");
-        result.appendLine("echo $keywords");
+        result.appendLine("echo $(date '+%Y-%m-%d %H:%M:%S') - " + fileName.split("\\.")[0].toString());
+        //result.appendLine("echo $keywords");
 
         result.appendLine("filename=\"" + fileName + "\"");
         result.appendLine("command=" + "`ps -ef | grep $filename | grep -v \"grep\"`");
-        result.appendLine("echo $command");
-        result.appendLine("while read file; do");
+        //result.appendLine("echo $command");
+        //result.appendLine("while read file; do");
+        result.appendLine("echo $command | while read file; do");
         result.appendLine("      if grep -q \"tail\" <<< \"$file\"; then");
-        result.appendLine("         echo \"Not Close Process\"");
+        result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - \"Not Close Process\"" + fileName.split("\\.")[0].toString());
         result.appendLine("      elif [\"\" == \"$file\"]; then");
-        result.appendLine("         echo \"Excuting...\"");
-        result.appendLine("         ./" + finderFileName);
+        result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - \"Excuting...\"" + fileName.split("\\.")[0].toString());
+        result.appendLine("         " + path + finderFileName);
         result.appendLine("         break");
         result.appendLine("      else");
-        result.appendLine("         echo \"Error\"");
+        result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - \"Error\"" + fileName.split("\\.")[0].toString());
         result.appendLine("      fi");
-        result.appendLine("done < <(echo \"$command\")");
+        result.appendLine("done");
+        //result.appendLine("done < <(echo \"$command\")");
 
         return result;
     }
@@ -134,7 +156,7 @@ public class Methods {
                 return "Properties File Input Faild! ";
             }
 
-            if(!changeMod(fileName, "722")){
+            if(!excuteShell("chmod 722 " + fileName)){
                 return "Properties File Chmod Fail! ";
             }
 
@@ -169,7 +191,7 @@ public class Methods {
                 return "FinderShell File Input Faild! ";
             }
 
-            if(!changeMod(fullPath, "722")){
+            if(!excuteShell("chmod 722 " + fullPath)){
                 return "Finder File Chmod Fail! ";
             }
 
@@ -185,19 +207,112 @@ public class Methods {
 
 
         result.appendLine("source " + setupFileName + "");
-        result.appendLine("echo \"Start "+fileName.split("\\.")[0].toString()+" Finder Shell !!\"");
+        result.appendLine("echo \"$(date '+%Y-%m-%d %H:%M:%S') - Start "+fileName.split("\\.")[0].toString()+" Finder Shell !!\""+ fileName.split("\\.")[0].toString());
         result.appendLine("tail " + path + fileName + " -n0 -F | while read line;");
         result.appendLine("do");
         result.appendLine("     for i in ${!keywords[*]};");
         result.appendLine("     do");
-        result.appendLine("         echo ${keywords[i]}");
+        result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - Keyword = ${keywords[i]} "+ fileName.split("\\.")[0].toString());
         result.appendLine("         if grep -q \"${keywords[i]}\" <<< \"$line\" ; then");
-        result.appendLine("             echo \"Send Slack !!\"");
+        result.appendLine("             echo $(date '+%Y-%m-%d %H:%M:%S') - \"Send Slack !!\" "+ fileName.split("\\.")[0].toString());
         result.appendLine("             #pkill -9 -P $$ tail");
         result.appendLine("             break");
         result.appendLine("         fi");
         result.appendLine("     done");
         result.appendLine("done;");
+
+        return result;
+    }
+
+
+    public String initSetup() throws Exception {
+        String result = "";
+
+        try {
+            JsonObject setupObject = convertStringToJsonObject(readFile(readFileFullPath));
+            JsonArray logmonitoring = setupObject.getAsJsonArray("logMonitoring");
+            for (JsonElement data : logmonitoring) {
+                JsonObject jsonObject = data.getAsJsonObject().get("system").getAsJsonObject();
+                String fileName = jsonObject.get("filename").toString().replace("\"", "");
+                String path = jsonObject.get("path").toString().replace("\"", "");
+
+                //기존 크론탭 제거
+                result += "<br/> " + deleteCrontab(path, fileName);
+
+            }
+        } catch (Exception e) {
+            return e.toString();
+        }
+
+        return result;
+    }
+
+    public String addCrontab(String path, String fileName) {
+        StringBuilderPlus sh = addCrontabshString(path, fileName, "1");
+
+        try{
+
+            if(!excuteShell(sh.toString())){
+                return "ExcuteShell Fail! ";
+            }
+            String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
+            StringBuilderPlus result = new StringBuilderPlus();
+            result.append("crontab -l | ");
+            result.append("(cat; echo \"" + "*/1" + " * * * * " + crontabName + "\") | ");
+            result.append("crontab -");
+            result.append(" Success!!");
+            return result.toString();
+
+        } catch (Exception ex) {
+            return ex.toString();
+        }
+    }
+    public String deleteCrontab(String path, String fileName) {
+        StringBuilderPlus sh = deleteCtontabshString(path, fileName, "1");
+
+        try{
+
+            if(!excuteShell(sh.toString())){
+                return "ExcuteShell Fail! ";
+            }
+            if(!excuteShell("kill $(ps aux | grep '"+fileName.split("\\.")[0].toString()+"' | awk '{print $2}')")){
+                return "ps Init Fail! " + "kill $(ps aux | grep '"+fileName.split("\\.")[0].toString()+"' | awk '{print $2}')";
+            }
+
+            StringBuilderPlus result = new StringBuilderPlus();
+            String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
+
+            result.append("crontab -l | ");
+            result.append("grep -v \"" + "1" + " \\* \\* \\* \\* " + crontabName + "\" | ");
+            result.append("crontab -");
+            result.append(" Success!!");
+
+            return result.toString();// "deleteCtontab Success! ";
+
+        } catch (Exception ex) {
+            return ex.toString();
+        }
+    }
+
+
+    public StringBuilderPlus deleteCtontabshString(String path, String fileName, String time){
+        String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
+
+        StringBuilderPlus result = new StringBuilderPlus();
+        result.append("crontab -l | ");
+        result.append("grep -v \"" + time + " \\* \\* \\* \\* " + crontabName + "\" | ");
+        result.append("crontab -");
+
+        return result;
+    }
+
+    public StringBuilderPlus addCrontabshString(String path, String fileName, String time){
+        String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
+
+        StringBuilderPlus result = new StringBuilderPlus();
+        result.append("crontab -l | ");
+        result.append("(cat; echo \"*/" +time + " * * * * " + crontabName + " >> /logs/crontab.log 2>&1\") | " );
+        result.append("crontab -");
 
         return result;
     }
@@ -219,13 +334,13 @@ public class Methods {
         }
     }
 
-    public Boolean changeMod(String filename, String Permission){
+    public Boolean excuteShell(String sh){
         StringBuilderPlus sp = new StringBuilderPlus();
         Process p;
 
         try {
             //이 변수에 명령어를 넣어주면 된다.
-            String[] cmd = {"/bin/bash", "-c", "chmod " + Permission + " " + filename};
+            String[] cmd = {"/bin/bash", "-c", sh};
             p = Runtime.getRuntime().exec(cmd);
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line = "";
@@ -239,5 +354,19 @@ public class Methods {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public String readFile(String fullPath) throws IOException {
+        StringBuilderPlus result = new StringBuilderPlus();
+        BufferedReader reader = new BufferedReader(
+                new FileReader(fullPath)
+        );
+        String line;
+        while ((line = reader.readLine()) != null) {
+            result.append(line);
+        }
+        reader.close();
+
+        return result.toString();
     }
 }
