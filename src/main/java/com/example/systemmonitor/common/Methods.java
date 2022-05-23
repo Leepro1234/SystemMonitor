@@ -5,76 +5,79 @@ import com.google.gson.*;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
-import java.security.Permission;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 
 public class Methods {
-    private String readFileFullPath ="/logs/setting/setup";
+    private String readFileFullPath = "/logs/setting/setup";
+    private String osName = System.getProperty("os.name").toLowerCase();
+    private String sendslackUrl;
+
+    public void SetSendslackUrl(String sendslackUrl){
+        this.sendslackUrl = sendslackUrl;
+    }
+
     public String convertYamlToJson() {
-        String json="";
+        String json = "";
         File file = new File("/logs/setting/logmornitoring.yml");
         Yaml yaml = new Yaml();
 
         try {
-            final Object loadedYaml = yaml.load(new FileReader(file));
+            Object loadedYaml = yaml.load(new FileReader(file));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             json = gson.toJson(loadedYaml, LinkedHashMap.class);
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
         return json;
     }
 
-    public JsonObject convertStringToJsonObject(String content) throws  Exception{
-        JsonObject jsonObject = new Gson().fromJson(content, JsonObject.class);
-
+    public JsonObject convertStringToJsonObject(String content) throws Exception {
+        JsonObject jsonObject = null;
+        try {
+            jsonObject = new Gson().fromJson(content, JsonObject.class);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
         return jsonObject;
     }
 
-    public String setSystemMonitoring() throws Exception{
+    public String setSystemMonitoring() throws Exception {
 
-        String result ="";
+        String result = "";
 
 
-        /*
-        * 파일 유무 체크
-         */
+        //기존 셋팅 유무 체크
         File setup = new File(readFileFullPath);
-        if(setup.isFile()){
-            //설정된 크론탭 제거
+        if (setup.isFile()) {
+            //기존 셋팅 초기화
             result += initSetup();
-
-            //크론탭 추가
-
         }
 
-        String fileName = "/logs/setting/setup";
-        try{
-            if(!inputFIle(fileName, convertYamlToJson())) {
-                return "setup File Input Faild! ";
-            }
+        String fullPath = "/logs/setting/setup";
+        try {
+            result += inputFIle(fullPath, convertYamlToJson());
 
-            if(!excuteShell("chmod 722 " + fileName)){
-                return "setup File Chmod Fail! ";
-            }
+            result += excuteShell("chmod 722 " + fullPath);
+
         } catch (Exception ex) {
             return ex.toString();
         }
 
-        try{
-            /*
-            * Shell 파일 생성
-            * proerties.sh
-            * 실행 sh
+        try {
+             /*
+             * Shell 파일 생성
              * 로직 sh
-             * */
+             * 로직실행 sh
+             * properties sh
+             */
             JsonObject jsonObject = convertStringToJsonObject(convertYamlToJson());
             JsonArray logmonitoring = jsonObject.getAsJsonArray("logMonitoring");
             for (JsonElement data : logmonitoring) {
-                result += addFinderShell(data) + "<br/>";
-                result += addLogmonitoringShell(data) + "<br/>";
-                result += addPropertiesShell(data) + "<br/>";
+                result += addFinderShell(data);
+                result += addLogmonitoringShell(data);
+                result += addPropertiesShell(data);
             }
 
             return result;
@@ -86,34 +89,30 @@ public class Methods {
 
 
     public String addLogmonitoringShell(JsonElement system) {
-        String filename="";
-        String path ="";
-        String keywords ="";
-        JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
-        filename = jsonObject.get("filename").toString().replace("\"","");
-        path = jsonObject.get("path").toString().replace("\"","");
 
-        StringBuilderPlus sh = setLogmonitoringshString(path, filename);
+        String result ="";
+        try {
+            JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
+            String filename = jsonObject.get("filename").toString().replace("\"", "");
+            String path = jsonObject.get("path").toString().replace("\"", "");
+            String time = jsonObject.get("time").toString().replace("\"", "");
 
-        try{
             String fullPath = path + filename.split("\\.")[0].toString() + ".sh";
-            if(!inputFIle(fullPath, sh.toString())) {
-                return "LogmonitoringShell File Input Faild! ";
-            }
 
-            if(!excuteShell("chmod 722 " + fullPath)){
-                return "LogmonitoringShell File Chmod Fail! ";
-            }
+            StringBuilderPlus sh = setLogmonitoringshString(path, filename);
 
+            result += inputFIle(fullPath, sh.toString());
 
-            //크론탭 추가
-            return "addLogmonitoringShell Success! " + addCrontab(path, filename);
+            // 권한변경, 크론탭 추가
+            result += excuteShell("chmod 722 " + fullPath) + addCrontab(path, filename, time);
+            return result;
 
         } catch (Exception ex) {
             return ex.toString();
         }
     }
-    public StringBuilderPlus setLogmonitoringshString(String path, String fileName){
+
+    public StringBuilderPlus setLogmonitoringshString(String path, String fileName) {
         String setupFileName = path + fileName.split("\\.")[0].toString() + "_setup.sh";
         String finderFileName = fileName.split("\\.")[0].toString() + "_finder.sh";
 
@@ -143,34 +142,33 @@ public class Methods {
     }
 
     public String addPropertiesShell(JsonElement system) {
-        JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
-        String fileName = jsonObject.get("filename").toString().replace("\"","");
-        String path = jsonObject.get("path").toString().replace("\"","");
-        JsonArray keywords = jsonObject.getAsJsonArray("keywords");
+        String result = "";
 
-        StringBuilderPlus sh = setLogmonitoringshString(keywords);
+        try {
+            JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
+            String fileName = jsonObject.get("filename").toString().replace("\"", "");
+            String path = jsonObject.get("path").toString().replace("\"", "");
+            JsonArray keywords = jsonObject.getAsJsonArray("keywords");
+            fileName = path + fileName.split("\\.")[0].toString() + "_setup.sh";
 
-        try{
-            fileName= path + fileName.split("\\.")[0].toString() + "_setup.sh";
-            if(!inputFIle(fileName, sh.toString())) {
-                return "Properties File Input Faild! ";
-            }
+            StringBuilderPlus sh = setLogmonitoringshString(keywords);
 
-            if(!excuteShell("chmod 722 " + fileName)){
-                return "Properties File Chmod Fail! ";
-            }
+            result += inputFIle(fileName, sh.toString());
 
-            return "addPropertiesShell Success! ";
+            result += excuteShell("chmod 722 " + fileName);
+
+            return result;
 
         } catch (Exception ex) {
             return ex.toString();
         }
     }
-    public StringBuilderPlus setLogmonitoringshString(JsonArray keywords){
+
+    public StringBuilderPlus setLogmonitoringshString(JsonArray keywords) {
         StringBuilderPlus result = new StringBuilderPlus();
         String gbn = "";
         result.append("keywords=(");
-        for(JsonElement keyword : keywords){
+        for (JsonElement keyword : keywords) {
             result.append(gbn + keyword.toString());
             gbn = " ";
         }
@@ -179,42 +177,49 @@ public class Methods {
     }
 
     public String addFinderShell(JsonElement system) {
-        JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
-        String filename = jsonObject.get("filename").toString().replace("\"","");
-        String path = jsonObject.get("path").toString().replace("\"","");
 
-        StringBuilderPlus sh = setFindershString(path, filename);
-
-        try{
+        String result = "";
+        try {
+            JsonObject jsonObject = system.getAsJsonObject().get("system").getAsJsonObject();
+            String filename = jsonObject.get("filename").toString().replace("\"", "");
+            String path = jsonObject.get("path").toString().replace("\"", "");
+            StringBuilderPlus sh = setFindershString(path, filename);
             String fullPath = path + filename.split("\\.")[0].toString() + "_finder.sh";
-            if(!inputFIle(fullPath, sh.toString())) {
-                return "FinderShell File Input Faild! ";
-            }
 
-            if(!excuteShell("chmod 722 " + fullPath)){
-                return "Finder File Chmod Fail! ";
-            }
+            result += inputFIle(fullPath, sh.toString());
 
-            return "addFinderShell Success! ";
+            result += excuteShell("chmod 722 " + fullPath);
 
+            return result;
         } catch (Exception ex) {
             return ex.toString();
         }
     }
-    public StringBuilderPlus setFindershString(String path, String fileName){
+
+    public StringBuilderPlus setFindershString(String path, String fileName) {
         StringBuilderPlus result = new StringBuilderPlus();
         String setupFileName = path + fileName.split("\\.")[0].toString() + "_setup.sh";
 
 
         result.appendLine("source " + setupFileName + "");
-        result.appendLine("echo \"$(date '+%Y-%m-%d %H:%M:%S') - Start "+fileName.split("\\.")[0].toString()+" Finder Shell !!\""+ fileName.split("\\.")[0].toString());
+        result.appendLine("echo \"$(date '+%Y-%m-%d %H:%M:%S') - Start " + fileName.split("\\.")[0].toString() + " Finder Shell !!\"" + fileName.split("\\.")[0].toString());
+
+        result.appendLine("sendUrl=\"" + sendslackUrl  + "\"");
         result.appendLine("tail " + path + fileName + " -n0 -F | while read line;");
         result.appendLine("do");
         result.appendLine("     for i in ${!keywords[*]};");
         result.appendLine("     do");
-        result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - Keyword = ${keywords[i]} "+ fileName.split("\\.")[0].toString());
+        result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - Keyword = ${keywords[i]} " + fileName.split("\\.")[0].toString());
         result.appendLine("         if grep -q \"${keywords[i]}\" <<< \"$line\" ; then");
-        result.appendLine("             echo $(date '+%Y-%m-%d %H:%M:%S') - \"Send Slack !!\" "+ fileName.split("\\.")[0].toString());
+        result.appendLine("             echo $(date '+%Y-%m-%d %H:%M:%S') - \"Send Slack !!\" " + fileName.split("\\.")[0].toString());
+        result.appendLine("             param=\"{");
+        result.appendLine("             \\\"message\\\":\\\"Fine By Keyword - [${keywords[i]}]\\\",");
+        result.appendLine("             \\\"keyword\\\":\\\"${keywords[i]}\\\",");
+        result.appendLine("             \\\"fileNmae\\\":\\\"" + fileName.split("\\.")[0].toString() + "\\\",");
+        result.appendLine("             \\\"system\\\":\\\"LogMornitoring\\\"");
+        result.appendLine("             }\"");
+        result.appendLine("             curl $sendUrl -H \"Content-Type: application/json\" -d \"$param\"");
+        result.appendLine("             echo \"\"");
         result.appendLine("             #pkill -9 -P $$ tail");
         result.appendLine("             break");
         result.appendLine("         fi");
@@ -230,14 +235,15 @@ public class Methods {
 
         try {
             JsonObject setupObject = convertStringToJsonObject(readFile(readFileFullPath));
-            JsonArray logmonitoring = setupObject.getAsJsonArray("logMonitoring");
-            for (JsonElement data : logmonitoring) {
+            JsonArray logMonitoring = setupObject.getAsJsonArray("logMonitoring");
+            for (JsonElement data : logMonitoring) {
                 JsonObject jsonObject = data.getAsJsonObject().get("system").getAsJsonObject();
                 String fileName = jsonObject.get("filename").toString().replace("\"", "");
                 String path = jsonObject.get("path").toString().replace("\"", "");
+                String time = jsonObject.get("time").toString().replace("\"", "");
 
                 //기존 크론탭 제거
-                result += "<br/> " + deleteCrontab(path, fileName);
+                result += deleteCrontab(path, fileName, time);
 
             }
         } catch (Exception e) {
@@ -247,47 +253,32 @@ public class Methods {
         return result;
     }
 
-    public String addCrontab(String path, String fileName) {
-        StringBuilderPlus sh = addCrontabshString(path, fileName, "1");
+    public String addCrontab(String path, String fileName, String time) {
+        String result ="";
+        try {
+            StringBuilderPlus sh = addCrontabshString(path, fileName, time);
+            //크론탭 추가
 
-        try{
-
-            if(!excuteShell(sh.toString())){
-                return "ExcuteShell Fail! ";
-            }
-            String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
-            StringBuilderPlus result = new StringBuilderPlus();
-            result.append("crontab -l | ");
-            result.append("(cat; echo \"" + "*/1" + " * * * * " + crontabName + "\") | ");
-            result.append("crontab -");
-            result.append(" Success!!");
-            return result.toString();
+            result += excuteShell(sh.toString());
+            return result;
 
         } catch (Exception ex) {
             return ex.toString();
         }
     }
-    public String deleteCrontab(String path, String fileName) {
-        StringBuilderPlus sh = deleteCtontabshString(path, fileName, "1");
 
-        try{
+    public String deleteCrontab(String path, String fileName, String time) {
+        String result ="";
+        try {
+            StringBuilderPlus sh = deleteCtontabshString(path, fileName, time);
 
-            if(!excuteShell(sh.toString())){
-                return "ExcuteShell Fail! ";
-            }
-            if(!excuteShell("kill $(ps aux | grep '"+fileName.split("\\.")[0].toString()+"' | awk '{print $2}')")){
-                return "ps Init Fail! " + "kill $(ps aux | grep '"+fileName.split("\\.")[0].toString()+"' | awk '{print $2}')";
-            }
+            //Crontab 제거 Shell 실행
+            result += excuteShell(sh.toString());
 
-            StringBuilderPlus result = new StringBuilderPlus();
-            String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
+            //실행중이런 Ps Kill
+            result += excuteShell("kill $(ps aux | grep '" + fileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
 
-            result.append("crontab -l | ");
-            result.append("grep -v \"" + "1" + " \\* \\* \\* \\* " + crontabName + "\" | ");
-            result.append("crontab -");
-            result.append(" Success!!");
-
-            return result.toString();// "deleteCtontab Success! ";
+            return result;
 
         } catch (Exception ex) {
             return ex.toString();
@@ -295,29 +286,31 @@ public class Methods {
     }
 
 
-    public StringBuilderPlus deleteCtontabshString(String path, String fileName, String time){
+    public StringBuilderPlus deleteCtontabshString(String path, String fileName, String time) {
         String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
 
         StringBuilderPlus result = new StringBuilderPlus();
         result.append("crontab -l | ");
-        result.append("grep -v \"" + time + " \\* \\* \\* \\* " + crontabName + "\" | ");
+        result.append("grep -v \"" + crontabName + "\" | ");
         result.append("crontab -");
 
         return result;
     }
 
-    public StringBuilderPlus addCrontabshString(String path, String fileName, String time){
+    public StringBuilderPlus addCrontabshString(String path, String fileName, String time) {
         String crontabName = path + fileName.split("\\.")[0].toString() + ".sh";
 
         StringBuilderPlus result = new StringBuilderPlus();
         result.append("crontab -l | ");
-        result.append("(cat; echo \"*/" +time + " * * * * " + crontabName + " >> /logs/crontab.log 2>&1\") | " );
+        result.append("(cat; echo \"*/" + time + " * * * * " + crontabName + " >> /logs/crontab.log 2>&1\") | ");
         result.append("crontab -");
 
         return result;
     }
 
-    public Boolean inputFIle(String filename, String content) throws Exception {
+    public String inputFIle(String filename, String content) throws Exception {
+        StringBuilderPlus result = new StringBuilderPlus();
+        result.append(DateFormmat());
         try {
             File file = new File(filename);
             FileOutputStream fileOutputStream = new FileOutputStream(file, false);
@@ -328,17 +321,23 @@ public class Methods {
             fileOutputStream.close();
             bufferedWriter.close();
 
-            return true;
+            result.append("InputFIle Success - " + filename);
         } catch (Exception e) {
-            return false;
+            result.append(filename + "InputFIle Fail  - " + e.toString());
         }
-    }
 
-    public Boolean excuteShell(String sh){
+        result.append("<br/>");
+        return result.toString();
+    }
+    public String excuteShell(String sh) {
+        StringBuilderPlus result = new StringBuilderPlus();
+        result.append(DateFormmat());
+
         StringBuilderPlus sp = new StringBuilderPlus();
         Process p;
 
         try {
+
             //이 변수에 명령어를 넣어주면 된다.
             String[] cmd = {"/bin/bash", "-c", sh};
             p = Runtime.getRuntime().exec(cmd);
@@ -349,11 +348,16 @@ public class Methods {
             p.waitFor();
             p.destroy();
 
-            return true;
+            result.append("ExcuteShell Success -  " + sh.toString());
 
         } catch (Exception e) {
-            return false;
+            result.append("ExcuteShell Fail - ");
+            if (osName.contains("win"))
+                result.append("Not Support OS! (windows) =>  ");
+            result.append(sh.toString());
         }
+        result.append("<br/>");
+        return result.toString();
     }
 
     public String readFile(String fullPath) throws IOException {
@@ -368,5 +372,9 @@ public class Methods {
         reader.close();
 
         return result.toString();
+    }
+
+    public String DateFormmat(){
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss | "));
     }
 }

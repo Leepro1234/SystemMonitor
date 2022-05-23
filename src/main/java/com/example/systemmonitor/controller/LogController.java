@@ -2,13 +2,13 @@ package com.example.systemmonitor.controller;
 
 import com.example.systemmonitor.common.Methods;
 import com.example.systemmonitor.common.StringBuilderPlus;
+import com.example.systemmonitor.dto.slack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,10 +17,6 @@ import java.io.InputStreamReader;
 public class LogController {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Methods methods = new Methods();
-
-    @Value("${test}")
-    private String test;
-
     @GetMapping("/appendlog")
     public String AppendLog(){
         String result ="";
@@ -28,36 +24,6 @@ public class LogController {
         logger.info("info Log");
 
         return result;
-    }
-
-    @GetMapping("/getlog")
-    public String AppendLog(@RequestParam("fileName") String fileName){
-        String result ="";
-        logger.info("fileName - " + fileName);
-
-        return fileName + " - Log Catch !!";
-    }
-
-    @GetMapping("/checkLog")
-    public String CheckLog(){
-        Process p;
-        StringBuilder result = new StringBuilder();
-        try {
-            //이 변수에 명령어를 넣어주면 된다.
-            //String[] cmd = {"/logs/test.sh"};
-            String[] cmd = {"/bin/bash", "-c", "chmod 722 /logs/demotest2_error.sadah"};
-            p = Runtime.getRuntime().exec(cmd);
-            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String s = "";
-            while ((s = br.readLine()) != null)
-                result.append(s);
-            p.waitFor();
-            p.destroy();
-
-        } catch (Exception e) {
-            result.append(e.getMessage());
-        }
-        return result.toString();
     }
 
     @GetMapping("/getpropertise")
@@ -68,11 +34,20 @@ public class LogController {
         return stringBuilderPlus.toString().replaceAll("\r\n","<br/>");
     }
 
-    @GetMapping("/setsystemmonitoring")
-    public String setsystemmonitoring() throws Exception {
-
-
+    @GetMapping(value = "/setsystemmonitoring")
+    public String setsystemmonitoring(HttpServletRequest request) throws Exception {
+        String uri = request.getRequestURL().toString();
+        methods.SetSendslackUrl(uri.replace(request.getRequestURI(),"") + "/demotest2/sendslackmessage");
         return methods.setSystemMonitoring();
-
     }
+
+    @PostMapping("/sendslackmessage")
+    public String sendslackmessage(@RequestBody slack slack, HttpServletRequest request) throws Exception {
+        String domain = request.getRequestURI();
+        String schema = request.getScheme();
+        String uri = request.getRequestURL().toString();
+        return uri.replace(domain,"") + " || "+ slack.getMessage();
+    }
+
+
 }
