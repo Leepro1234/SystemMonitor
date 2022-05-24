@@ -3,15 +3,15 @@ package com.example.systemmonitor.controller;
 import com.example.systemmonitor.common.Methods;
 import com.example.systemmonitor.common.StringBuilderPlus;
 import com.example.systemmonitor.dto.slack;
+import com.example.systemmonitor.service.SlackService;
+import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.i18n.SimpleLocaleContext;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
 @RestController
 public class LogController {
@@ -43,10 +43,12 @@ public class LogController {
 
     @PostMapping("/sendslackmessage")
     public String sendslackmessage(@RequestBody slack slack, HttpServletRequest request) throws Exception {
-        String domain = request.getRequestURI();
-        String schema = request.getScheme();
-        String uri = request.getRequestURL().toString();
-        return uri.replace(domain,"") + " || "+ slack.getMessage();
+        SlackService<slack> slackService = new SlackService<slack>();
+        slackService.SetMethod(SlackService.Method.POST);
+        slackService.SetJsonBody(slack);
+        slackService.SendSlackMessage("https://hooks.slack.com/services/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");
+
+        return slackService.resposeBody;
     }
 
 

@@ -213,7 +213,7 @@ public class Methods {
         result.appendLine("         if grep -q \"${keywords[i]}\" <<< \"$line\" ; then");
         result.appendLine("             echo $(date '+%Y-%m-%d %H:%M:%S') - \"Send Slack !!\" " + fileName.split("\\.")[0].toString());
         result.appendLine("             param=\"{");
-        result.appendLine("             \\\"message\\\":\\\"Fine By Keyword - [${keywords[i]}]\\\",");
+        result.appendLine("             \\\"text\\\":\\\"$(date '+%Y-%m-%d %H:%M:%S')  Fine By Keyword - [${keywords[i]}] => " + fileName + "\\\",");
         result.appendLine("             \\\"keyword\\\":\\\"${keywords[i]}\\\",");
         result.appendLine("             \\\"fileNmae\\\":\\\"" + fileName.split("\\.")[0].toString() + "\\\",");
         result.appendLine("             \\\"system\\\":\\\"LogMornitoring\\\"");
@@ -276,7 +276,7 @@ public class Methods {
             result += excuteShell(sh.toString());
 
             //실행중이런 Ps Kill
-            result += excuteShell("kill $(ps aux | grep '" + fileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
+            result += excuteShell("kill -9 $(ps aux | grep '" + fileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
 
             return result;
 

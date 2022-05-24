@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class slack {
-    private String message;
+    private String text;
 
     private String system;
 
