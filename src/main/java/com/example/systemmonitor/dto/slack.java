@@ -17,4 +17,6 @@ public class slack {
     private String fileName;
 
     private String keyword;
+
+    private String webhookUrl;
 }
