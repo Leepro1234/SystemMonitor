@@ -18,7 +18,7 @@ public class LogController {
     @GetMapping("/appendlog")
     public String AppendLog(){
         String result ="";
-        logger.error("error Log");
+        logger.error("ERROR Log");
         logger.info("info Log");
 
         return result;

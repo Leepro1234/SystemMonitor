@@ -25,7 +25,7 @@
     <property name ="INFO_LOG_FILE_NAME" value = "${log.config.filename}_info"/>
 
     <!-- 로그 파일 패턴 -->
-    <property name ="LOG_PATTERN" value = "%-5level %d{yyyy-MM-dd HH:mm:ss}[%thread] [%C] [%logger{0}:%line] - %msg%n"/>
+    <property name ="LOG_PATTERN" value = "%-5level %d{yyyy-MM-dd HH:mm:ss} [%thread] [%C] [%logger{0}:%line] - %msg%n"/>
 
 
 

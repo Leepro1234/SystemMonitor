@@ -12,9 +12,10 @@ import java.util.LinkedHashMap;
 public class Methods {
     private String ymlFullPath = "/logs/setting/logmornitoring.yml"; //yml 경로
     private String setupFullPath = "/logs/setting/setup"; //환경설정 파일 경로
+    private String setupPath = "/logs/setting/"; //환경설정 파일 경로
+
     private String osName = System.getProperty("os.name").toLowerCase();
     private String sendSlackMessageUrl; //Slack Message 전송 API URL
-    private String webHookUrl;//Slack Webhook Url
 
 
     //로그모니터링
@@ -28,6 +29,8 @@ public class Methods {
     private String propLogStartupName = "_logStartup.sh"; //로그모니터링 Properties파일 네임
 
     //health Check
+    private String propHealthCheck = "healthCheck"; //로그모니터링 할 로그파일속성명
+    private String propProcessName = "processName"; //로그모니터링 할 로그파일 프로세스명
 
 
     //공통
@@ -78,7 +81,7 @@ public class Methods {
         }
 
         try {
-            result += inputFIle(setupFullPath, convertYamlToJson());
+            result += inputFIle(setupPath, setupFullPath, convertYamlToJson());
 
             result += excuteShell("chmod 722 " + setupFullPath);
 
@@ -89,13 +92,9 @@ public class Methods {
         try {
 
             JsonObject jsonObject = convertStringToJsonObject(convertYamlToJson());
-            webHookUrl = getJsonObjectString(jsonObject, propWebHookUrl);
-            if(webHookUrl==""){
-                throw new Exception("Slack WebHook Url은 필수입니다");
-            }
 
             result += LogMornitoring(jsonObject);
-
+            //result += HealthCheck(jsonObject);
             return result;
 
         } catch (Exception ex) {
@@ -129,18 +128,18 @@ public class Methods {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
             String filename = getJsonObjectString(jsonObject, propFilename);
             String path = getJsonObjectString(jsonObject, propPath);
+
             String time = getJsonObjectString(jsonObject, propTime);
             if(filename == "" || path == "" || time == ""){
-                throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다");
+                throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다 <br/>");
             }
             String makePath = getJsonObjectString(jsonObject, "makePath");
-
-            String fullPath = path + filename.split("\\.")[0].toString() + propLogStartupName;
-            StringBuilderPlus sh = setLogmonitoringshString(path, filename);
-            result += inputFIle(fullPath, sh.toString());
+            String fullPath = makePath + filename.split("\\.")[0].toString() + propLogStartupName;
+            StringBuilderPlus sh = setLogmonitoringshString(path, makePath, filename);
+            result += inputFIle(path, fullPath, sh.toString());
 
             // 권한변경, 크론탭 추가
-            result += excuteShell("chmod 722 " + fullPath) + addCrontab(path, filename, time);
+            result += excuteShell("chmod 722 " + fullPath) + addCrontab(makePath, filename, time);
             return result;
 
         } catch (Exception ex) {
@@ -148,9 +147,9 @@ public class Methods {
         }
     }
 
-    public StringBuilderPlus setLogmonitoringshString(String path, String fileName) {
+    public StringBuilderPlus setLogmonitoringshString(String path, String makePath, String fileName) {
         String onlyFileName = fileName.split("\\.")[0].toString();
-        String setupFileName = path + onlyFileName + propAddPropertiesName;
+        String setupFileName = makePath + onlyFileName + propAddPropertiesName;
         String finderFileName = onlyFileName + propAddFinderName;
 
         StringBuilderPlus result = new StringBuilderPlus();
@@ -158,7 +157,7 @@ public class Methods {
         result.appendLine("echo $(date '+%Y-%m-%d %H:%M:%S') - " + onlyFileName);
         //result.appendLine("echo $keywords");
 
-        result.appendLine("filename=\"" + fileName + "\"");
+        result.appendLine("filename=\"" + path + fileName + "\"");
         result.appendLine("command=" + "`ps -ef | grep $filename | grep -v \"grep\"`");
         //result.appendLine("echo $command");
         //result.appendLine("while read file; do");
@@ -167,7 +166,7 @@ public class Methods {
         result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - \"Not Close Process\" " + onlyFileName);
         result.appendLine("      elif [\"\" == \"$file\"]; then");
         result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - \"Excuting...\" " + onlyFileName);
-        result.appendLine("         " + path + finderFileName);
+        result.appendLine("         " + makePath + finderFileName);
         result.appendLine("         break");
         result.appendLine("      else");
         result.appendLine("         echo $(date '+%Y-%m-%d %H:%M:%S') - \"Error\" " + onlyFileName);
@@ -184,17 +183,18 @@ public class Methods {
         try {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
             String fileName = getJsonObjectString(jsonObject, propFilename);
-            String path = getJsonObjectString(jsonObject, propPath);
-            if(fileName == "" || path == "" ){
-                throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다");
+            String makePath = getJsonObjectString(jsonObject, propMakePath);
+
+            if(fileName == "" || makePath == "" ){
+                throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다<br/>");
             }
 
             JsonArray keywords = jsonObject.getAsJsonArray(propKeywords);
-            fileName = path + fileName.split("\\.")[0].toString() + propAddPropertiesName;
+            fileName = makePath + fileName.split("\\.")[0].toString() + propAddPropertiesName;
 
             StringBuilderPlus sh = setLogmonitoringshString(keywords);
 
-            result += inputFIle(fileName, sh.toString());
+            result += inputFIle(makePath, fileName, sh.toString());
 
             result += excuteShell("chmod 722 " + fileName);
 
@@ -224,13 +224,16 @@ public class Methods {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
             String fileName = getJsonObjectString(jsonObject, propFilename);
             String path = getJsonObjectString(jsonObject, propPath);
-            if(fileName == "" || path == "" ){
-                throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다");
-            }
-            StringBuilderPlus sh = setFindershString(path, fileName);
-            String fullPath = path + fileName.split("\\.")[0].toString() + propAddFinderName;
+            String makePath = getJsonObjectString(jsonObject, propMakePath);
+            String webhookUrl = getJsonObjectString(jsonObject, propWebHookUrl);
 
-            result += inputFIle(fullPath, sh.toString());
+            if(fileName.isEmpty() || path.isEmpty() || webhookUrl.isEmpty() ){
+                throw new Exception("로그모니터링의 설정파일은 filename, path, webhookUrl 항목이 필수입니다<br/>");
+            }
+            StringBuilderPlus sh = setFindershString(path, makePath, fileName, webhookUrl);
+            String fullPath = makePath + fileName.split("\\.")[0].toString() + propAddFinderName;
+
+            result += inputFIle(path, fullPath, sh.toString());
 
             result += excuteShell("chmod 722 " + fullPath);
 
@@ -240,10 +243,10 @@ public class Methods {
         }
     }
 
-    public StringBuilderPlus setFindershString(String path, String fileName) {
+    public StringBuilderPlus setFindershString(String path, String makePath, String fileName, String webhookUrl) {
         StringBuilderPlus result = new StringBuilderPlus();
         String onlyFileName =fileName.split("\\.")[0].toString();
-        String setupFileName = path + onlyFileName + propAddPropertiesName;
+        String setupFileName = makePath + onlyFileName + propAddPropertiesName;
 
 
         result.appendLine("source " + setupFileName + "");
@@ -261,7 +264,7 @@ public class Methods {
         result.appendLine("             \\\"text\\\":\\\"$(date '+%Y-%m-%d %H:%M:%S')  Fine By Keyword - [${keywords[i]}] => " + fileName + "\\\",");
         result.appendLine("             \\\"keyword\\\":\\\"${keywords[i]}\\\",");
         result.appendLine("             \\\"fileNmae\\\":\\\"" + onlyFileName + "\\\",");
-        result.appendLine("             \\\"webhookUrl\\\":\\\"" + webHookUrl + "\\\",");
+        result.appendLine("             \\\"webhookUrl\\\":\\\"" + webhookUrl + "\\\",");
         result.appendLine("             \\\"system\\\":\\\"LogMornitoring\\\"");
         result.appendLine("             }\"");
         result.appendLine("             curl $sendUrl -H \"Content-Type: application/json\" -d \"$param\"");
@@ -281,27 +284,32 @@ public class Methods {
         String result = "";
         JsonArray healthCheck = jsonObject.getAsJsonArray("healthCheck");
         for (JsonElement data : healthCheck) {
-
+            result += addHealthCheckShell(data);
         }
         return result;
     }
 
     public String addHealthCheckShell(JsonElement system) {
-
         String result = "";
         try {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
-            String filename = jsonObject.get("processName").toString().replace("\"", "");
-            String time = jsonObject.get(propTime).toString().replace("\"", "");
-            String makePath = jsonObject.get("makePath").toString().replace("\"", "");
-            String fullPath = makePath + filename.split("\\.")[0].toString() + ".sh";
+            String fileName = getJsonObjectString(jsonObject, propFilename);
+            String time = getJsonObjectString(jsonObject, propTime);
+            String makePath = getJsonObjectString(jsonObject, propMakePath);
+            String processName = jsonObject.get(propProcessName).toString().replace("\"", "");
+            String fullPath = makePath + fileName.split("\\.")[0].toString() + ".sh";
 
-            StringBuilderPlus sh = setLogmonitoringshString(makePath, filename);
+            if(fileName.isEmpty() || makePath.isEmpty() || processName.isEmpty() || time.isEmpty()){
+                throw new Exception("Health Check 의 설정파일은 filename, makePath, time, processName 항목이 필수입니다 <br/>");
+            }
 
-            result += inputFIle(fullPath, sh.toString());
+            StringBuilderPlus sh = setLogmonitoringshString(makePath, makePath, fileName);
+
+            //result += inputFIle(makePath, fullPath, sh.toString());
 
             // 권한변경, 크론탭 추가
-            result += excuteShell("chmod 722 " + fullPath) + addCrontab(makePath, filename, time);
+            //result += excuteShell("chmod 722 " + fullPath) +
+             //         addCrontab(makePath, fileName, time);
             return result;
 
         } catch (Exception ex) {
@@ -319,10 +327,10 @@ public class Methods {
             for (JsonElement data : logMonitoring) {
                 JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
                 String fileName = getJsonObjectString(jsonObject, propFilename);
-                String path = getJsonObjectString(jsonObject, propPath);
+                String path = getJsonObjectString(jsonObject, propMakePath);
                 String time = getJsonObjectString(jsonObject, propTime);
                 if(fileName == "" || path == "" || time == ""){
-                    throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다");
+                    throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다 <br/>");
                 }
 
                 //기존 크론탭 제거
@@ -391,22 +399,25 @@ public class Methods {
     }
 
 
-    public String inputFIle(String filename, String content) throws Exception {
+    public String inputFIle(String path, String fullPath, String content) throws Exception {
         StringBuilderPlus result = new StringBuilderPlus();
         result.append(DateFormmat());
         try {
-            File file = new File(filename);
-            FileOutputStream fileOutputStream = new FileOutputStream(file, false);
+            File file = new File(path);
+            if(!file.isDirectory()){
+                file.mkdirs();
+            }
+            FileOutputStream fileOutputStream = new FileOutputStream(new File(fullPath), false);
 
-            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
+            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fullPath));
             bufferedWriter.write(content);
             bufferedWriter.flush();
             fileOutputStream.close();
             bufferedWriter.close();
 
-            result.append("InputFIle Success - " + filename);
+            result.append("InputFIle Success - " + fullPath);
         } catch (Exception e) {
-            result.append(filename + "InputFIle Fail  - " + e.toString());
+            result.append(fullPath + "InputFIle Fail  - " + e.toString());
         }
 
         result.append("<br/>");
@@ -468,7 +479,7 @@ public class Methods {
             result = jsonObject.get(key).toString().replace("\"", "");
         }else{
             switch (key){
-                case "propMakePath":
+                case "makePath":
                     if(jsonObject.get(propPath) != null) {
                         result = jsonObject.get(propPath).toString().replace("\"", "");
                     }else{
