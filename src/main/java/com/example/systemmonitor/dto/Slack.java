@@ -9,14 +9,16 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class slack {
+public class Slack {
     private String text;
 
     private String system;
 
-    private String fileName;
+    private String logFileName;
 
     private String keyword;
 
     private String webhookUrl;
+
+    private String limitTime;
 }

@@ -1,5 +1,7 @@
 package com.example.systemmonitor.service;
 
+import com.example.systemmonitor.common.Methods;
+import com.example.systemmonitor.dto.Slack;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.util.ArrayList;
 
 @Service
 public  class SlackService<T> {
@@ -26,13 +29,9 @@ public  class SlackService<T> {
     public JsonObject jsonBody = new JsonObject();
     public String resposeBody;
     public String contentType = "";
+
     public SlackService() throws Exception {
-
-
         this.contentType="application/json";
-
-
-
     }
 
     public void SetHeader(String name, String value){
@@ -67,8 +66,9 @@ public  class SlackService<T> {
         }
     }
 
-    public void SendSlackMessage(String url) throws Exception{
+    public void SendSlackMessage(String url, Slack slack) throws Exception{
         Go(url);
+        InitRetryLimit(slack);
     }
 
     public void Go(String url) throws Exception {
@@ -109,7 +109,14 @@ public  class SlackService<T> {
     }
 
 
+    public void InitRetryLimit(Slack slack) throws Exception {
+        Methods methods = new Methods();
+        ArrayList<String> limitList = methods.ReadAndInitLimitListReturnArrayList(slack);
+        methods.WriteLimitList(slack.getLogFileName(), slack.getKeyword(), slack.getLimitTime(), limitList);
+
+    }
     public enum Method {
         GET, POST, DELETE, PUT, PATCH
     }
+
 }
