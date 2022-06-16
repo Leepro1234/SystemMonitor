@@ -18,7 +18,7 @@ public class LogController {
     @GetMapping("/appendlog")
     public String AppendLog(){
         String result ="";
-        logger.error("ERROR Log");
+        logger.error("00009-ERROR ServiceLoggingAspect");
 
         return result;
     }
@@ -41,14 +41,22 @@ public class LogController {
     @GetMapping(value = "/setsystemmonitoring")
     public String SetSystemMornitoring(HttpServletRequest request) throws Exception {
         String uri = request.getRequestURL().toString();
-        methods.SetUrl(uri.replace(request.getRequestURI(),"") + "/demotest2/sendslackmessage",
-                uri.replace(request.getRequestURI(),"") + "/demotest2/api/readlimitlist"    );
+/*        methods.SetUrl(uri.replace(request.getRequestURI(),"") + "/demotest2/sendslackmessage",
+                uri.replace(request.getRequestURI(),"") + "/demotest2/api/readlimitlist"    );*/
+
+                methods.SetUrl(uri.replace(request.getRequestURI(),"") + "/sendslackmessage",
+                uri.replace(request.getRequestURI(),"") + "/api/readlimitlist"    );
         return methods.SetSystemMonitoring();
     }
 
     @GetMapping(value = "/closesystemmornitoring")
     public String CloseSystemMornitoring(HttpServletRequest request) throws Exception {
         return methods.CloseSystemMonitoring();
+    }
+
+    @GetMapping(value = "/getsystemmornitoringstatus")
+    public String GetSystemMonitoringStatus(HttpServletRequest request) throws Exception {
+        return methods.GetSystemMonitoringStatus().replace("\r\n","<br/>");
     }
 
 
@@ -71,5 +79,13 @@ public class LogController {
         }
     }
 
+    @GetMapping(value = "/api/test/")
+    public String test(HttpServletRequest request) throws Exception {
+     SlackService<Slack> slackService = new SlackService<Slack>();
+        slackService.SetMethod(SlackService.Method.GET);
+     slackService.test("https://data.bigdragon.shop/demotest2/getsystemmornitoringstatus");
+
+     return "";
+    }
 
 }

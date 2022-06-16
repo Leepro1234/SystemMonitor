@@ -71,6 +71,10 @@ public  class SlackService<T> {
         InitRetryLimit(slack);
     }
 
+    public void test(String url) throws Exception{
+        Go(url);
+    }
+
     public void Go(String url) throws Exception {
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectionRequestTimeout(10 * 1000)
@@ -104,7 +108,10 @@ public  class SlackService<T> {
             System.out.println(html);
             this.resposeBody = html;
         }else{
-
+            HttpResponse httpResponse = httpClient.execute(httpGet);
+            String html = EntityUtils.toString(httpResponse.getEntity());
+            System.out.println(html);
+            this.resposeBody = html;
         }
     }
 

@@ -13,11 +13,15 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 
 public class Methods {
-    private String ymlFullPath = "/logs/setting/logmornitoring.yml"; //yml 경로
-    private String setupFullPath = "/logs/setting/setup"; //환경설정 파일
-    private String limitListFullPath = "/logs/setting/retryInfoList"; //재알림 설정파일 전체경로
+    //private String path = "/usr/local/dy/";
+    private String path = "/usr/local/dy/";
+    private String ymlFullPath = path + "setting/logmornitoring.yml"; //yml 경로
+    private String setupFullPath = path + "setting/setup"; //환경설정 파일
+    private String limitListFullPath = path + "setting/retryInfoList"; //재알림 설정파일 전체경로
+    private String setupPath = path + "setting/"; //환경설정 파일 경로
+    private String deleteCrontabName = "deleteCorontab.sh";
+    private String addCrontabName = "addCrontab.sh";
     private String limitListFileName = "retryInfoList"; //재알림 설정파일 파일명
-    private String setupPath = "/logs/setting/"; //환경설정 파일 경로
 
 
     private String osName = System.getProperty("os.name").toLowerCase();
@@ -93,7 +97,7 @@ public class Methods {
         try {
             result += InputFIle(setupPath, setupFullPath, ConvertYamlToJson());
             result += InputFIle(setupPath, limitListFullPath, "");
-            result += ExcuteShell("chmod 722 " + setupFullPath);
+            result += ExcuteShell("chmod 771 " + setupFullPath);
 
         } catch (Exception ex) {
             return "셋팅 시 에러 발생 " + ex.toString();
@@ -104,7 +108,7 @@ public class Methods {
             JsonObject jsonObject = ConvertStringToJsonObject(ConvertYamlToJson());
 
             result += LogMornitoring(jsonObject);
-            result += HealthCheck(jsonObject);
+            //result += HealthCheck(jsonObject);
             return result;
 
         } catch (Exception ex) {
@@ -120,6 +124,31 @@ public class Methods {
             return InitSetup();
         }
         return "Setting File is Empty";
+    }
+
+    public String GetSystemMonitoringStatus() throws Exception {
+        String result = "";
+
+        try {
+            JsonObject setupObject = ConvertStringToJsonObject(ReadFile(setupFullPath));
+            JsonArray logMonitoring = setupObject.getAsJsonArray(propLogMornitoring);
+            for (JsonElement data : logMonitoring) {
+                JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
+                String logFileName = GetJsonObjectString(jsonObject, propFilename);
+
+                String shResult = ExcuteShell("ps -ef | grep "+logFileName+" | grep -v \"grep\"");
+                if(shResult.split("\r\n")[1].replace("shell result=","").replace("\n","").isEmpty()){
+                    result += logFileName + " => Status <font style='color:red;'>[No Active]</font>\r\n";
+                }else{
+                    result += logFileName + " => Status <font style='color:green;'>[Active]</font>\r\n";
+                }
+
+            }
+        } catch (Exception e) {
+            return e.toString();
+        }
+
+        return result;
     }
 
 
@@ -144,6 +173,7 @@ public class Methods {
     public String AddLogMonitoringShell(JsonElement system) {
 
         String result = "";
+        String addCrontabString = "";
         try {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
             String filename = GetJsonObjectString(jsonObject, propFilename);
@@ -162,7 +192,16 @@ public class Methods {
             result += InputFIle(path, fullPath, sh.toString());
 
             // 권한변경, 크론탭 추가
-            result += ExcuteShell("chmod 722 " + fullPath) + AddCrontab(makePath, makeFileName, time);
+            //result += ExcuteShell("chmod 771 " + fullPath) + AddCrontab(makePath, makeFileName, time);
+            result += ExcuteShell("chmod 771 " + fullPath);
+
+
+            addCrontabString += AddCrontabshString(makePath, makeFileName, time);
+            InputFIle(setupPath, setupPath + addCrontabName, addCrontabString);
+            result += ExcuteShell("chmod 771 " + setupPath + addCrontabName); //권한변경
+            result += ExcuteShell(setupPath + addCrontabName);
+
+
             return result;
 
         } catch (Exception ex) {
@@ -218,7 +257,7 @@ public class Methods {
 
             result += InputFIle(makePath, fileName, sh.toString());
 
-            result += ExcuteShell("chmod 722 " + fileName);
+            result += ExcuteShell("chmod 771 " + fileName);
 
             return result;
 
@@ -258,7 +297,7 @@ public class Methods {
 
             result += InputFIle(path, fullPath, sh.toString());
 
-            result += ExcuteShell("chmod 722 " + fullPath);
+            result += ExcuteShell("chmod 771 " + fullPath);
 
             return result;
         } catch (Exception ex) {
@@ -293,7 +332,7 @@ public class Methods {
         result.appendLine("             }\"");
 
         //Limit Time 초과된 키워드들 초기화
-        result.appendLine("             if grep -q \"${keywords[i]}\" <<< `curl $retryInfoUrl -H \"Content-Type: application/json\" -d \"$param\"` ; then ");
+        result.appendLine("             if grep -q \"${keywords[i]} " + onlyLogFileName + "\" <<< `curl $retryInfoUrl -H \"Content-Type: application/json\" -d \"$param\"` ; then ");
         result.appendLine("                echo $(date '+%Y-%m-%dT%H:%M:%S') - \"retry read ERROR KEYWORK - ${keywords[i]}\" " + logFileName);
         result.appendLine("                break");
         result.appendLine("             fi");
@@ -352,10 +391,12 @@ public class Methods {
 
     public String InitSetup() throws Exception {
         String result = "";
+        String deleteCrontabString = "";
 
         try {
             JsonObject setupObject = ConvertStringToJsonObject(ReadFile(setupFullPath));
             JsonArray logMonitoring = setupObject.getAsJsonArray(propLogMornitoring);
+
             for (JsonElement data : logMonitoring) {
                 JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
                 String time = GetJsonObjectString(jsonObject, propTime);
@@ -373,9 +414,19 @@ public class Methods {
                 result += DeleteFIle(setupPath, limitListFileName );
 
                 //기존 크론탭 제거
-                result += DeleteCrontab(makePath, logFileName, makeFileName, time);
-
+                deleteCrontabString += DeleteCtontabshString(makeFileName);
             }
+
+            InputFIle(setupPath, setupPath + deleteCrontabName, deleteCrontabString);
+            result += ExcuteShell("chmod 771 " + setupPath + deleteCrontabName); //권한변경
+            result += ExcuteShell(setupPath + deleteCrontabName);
+            for (JsonElement data : logMonitoring) {
+                JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
+                String logFileName = GetJsonObjectString(jsonObject, propFilename);
+                //실행중이런 Ps Kill
+                result += ExcuteShell("kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
+            }
+
         } catch (Exception e) {
             return e.toString();
         }
@@ -396,11 +447,21 @@ public class Methods {
             return ex.toString();
         }
     }
+    public StringBuilderPlus AddCrontabshString(String path, String fileName, String time) {
+        String crontabName = path + fileName.split("\\.")[0].toString() + propLogStartupName;
+
+        StringBuilderPlus result = new StringBuilderPlus();
+        result.append("crontab -l | ");
+        result.append("(cat; echo \"*/" + time + " * * * * " + crontabName + " >> /usr/local/dy/logs/crontab.log 2>&1\")  ");
+        result.appendLine("| crontab -");
+
+        return result;
+    }
 
     public String DeleteCrontab(String path, String logFileName, String makeFileName, String time) {
         String result = "";
         try {
-            StringBuilderPlus sh = DeleteCtontabshString(path, logFileName, time);
+            StringBuilderPlus sh = DeleteCtontabshString(makeFileName);
 
             //Crontab 제거 Shell 실행
             result += ExcuteShell(sh.toString());
@@ -414,28 +475,17 @@ public class Methods {
             return ex.toString();
         }
     }
-
-    public StringBuilderPlus DeleteCtontabshString(String path, String fileName, String time) {
+    public StringBuilderPlus DeleteCtontabshString(String fileName) {
         String crontabName = fileName.split("\\.")[0].toString() + propLogStartupName;
 
         StringBuilderPlus result = new StringBuilderPlus();
-        result.append("crontab -l | ");
-        result.append("grep -v \"" + crontabName + "\" | ");
-        result.append("crontab -");
+        result.append("crontab -l");
+        result.append("| grep -v \"" + crontabName + "\"  ");
+        result.appendLine("| crontab -");
 
         return result;
     }
 
-    public StringBuilderPlus AddCrontabshString(String path, String fileName, String time) {
-        String crontabName = path + fileName.split("\\.")[0].toString() + propLogStartupName;
-
-        StringBuilderPlus result = new StringBuilderPlus();
-        result.append("crontab -l | ");
-        result.append("(cat; echo \"*/" + time + " * * * * " + crontabName + " >> /logs/crontab.log 2>&1\") | ");
-        result.append("crontab -");
-
-        return result;
-    }
 
 
     public String ReadAndInitLimitList(Slack slack) throws Exception {
@@ -613,11 +663,19 @@ public class Methods {
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line = "";
             while ((line = br.readLine()) != null)
-                sp.append(line);
+                sp.appendLine(line);
+
+            // shell 실행시 에러 발생한경우
+            BufferedReader errorBufferedReader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            line = "";
+            while ((line = errorBufferedReader.readLine()) != null)
+                sp.appendLine(line);
+
             p.waitFor();
             p.destroy();
 
-            result.append("ExcuteShell Success -  " + sh.toString());
+            result.appendLine("ExcuteShell Success -  " + sh.toString() + "\r\n");
+            result.appendLine("shell result=" + sp.toString()+ "\r\n");
 
         } catch (Exception e) {
             result.append("ExcuteShell Fail - ");
@@ -657,7 +715,7 @@ public class Methods {
                     if(jsonObject.get(propPath) != null) {
                         result = jsonObject.get(propPath).toString().replace("\"", "");
                     }else{
-                        result = "/logs/sh";
+                        result = "/usr/local/dy/sh";
                     }
             }
         }
