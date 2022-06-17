@@ -424,7 +424,7 @@ public class Methods {
                 JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
                 String logFileName = GetJsonObjectString(jsonObject, propFilename);
                 //실행중이런 Ps Kill
-                result += ExcuteShell("kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
+                result += ExcuteShell("sudo kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
             }
 
         } catch (Exception e) {
@@ -467,7 +467,7 @@ public class Methods {
             result += ExcuteShell(sh.toString());
 
             //실행중이런 Ps Kill
-            result += ExcuteShell("kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
+            result += ExcuteShell("sudo kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
 
             return result;
 
