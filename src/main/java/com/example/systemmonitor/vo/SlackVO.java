@@ -1,4 +1,4 @@
-package com.example.systemmonitor.dto;
+package com.example.systemmonitor.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Slack {
+public class SlackVO {
     private String text;
 
     private String system;

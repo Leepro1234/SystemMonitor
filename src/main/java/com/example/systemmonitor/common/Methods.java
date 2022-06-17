@@ -1,7 +1,7 @@
 package com.example.systemmonitor.common;
 
 
-import com.example.systemmonitor.dto.Slack;
+import com.example.systemmonitor.vo.SlackVO;
 import com.google.gson.*;
 import org.yaml.snakeyaml.Yaml;
 
@@ -25,8 +25,8 @@ public class Methods {
 
 
     private String osName = System.getProperty("os.name").toLowerCase();
-    private String sendSlackMessageUrl; //Slack Message 전송 API URL
-    private String retryInfoUrl; //Slack Message 전송 API URL
+    private String sendSlackMessageUrl; //SlackVO Message 전송 API URL
+    private String retryInfoUrl; //SlackVO Message 전송 API URL
 
 
     //로그모니터링
@@ -45,7 +45,7 @@ public class Methods {
 
 
     //공통
-    private String propWebHookUrl = "slackUrl"; //환경설정파일 Slack Webhook Url
+    private String propWebHookUrl = "slackUrl"; //환경설정파일 SlackVO Webhook Url
     private String propRetryTime = "LimitTime"; //재시도 제한 시간
     private String propArrayKey = "system"; //Array 키
     private String propMakePath = "shMakePath"; //sh 생성 경로
@@ -189,7 +189,7 @@ public class Methods {
             String fullPath = makePath + makeFileName.split("\\.")[0].toString() + propLogStartupName;
             StringBuilderPlus sh = SetLogMornitoringString(path, makePath, filename, makeFileName);
 
-            result += InputFIle(path, fullPath, sh.toString());
+            result += InputFIle(makePath, fullPath, sh.toString());
 
             // 권한변경, 크론탭 추가
             //result += ExcuteShell("chmod 771 " + fullPath) + AddCrontab(makePath, makeFileName, time);
@@ -295,7 +295,7 @@ public class Methods {
             StringBuilderPlus sh = SetFindershString(path, makePath, fileName, makeFileName, webhookUrl);
             String fullPath = makePath + makeFileName.split("\\.")[0].toString() + propAddFinderName;
 
-            result += InputFIle(path, fullPath, sh.toString());
+            result += InputFIle(makePath, fullPath, sh.toString());
 
             result += ExcuteShell("chmod 771 " + fullPath);
 
@@ -400,10 +400,8 @@ public class Methods {
             for (JsonElement data : logMonitoring) {
                 JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
                 String time = GetJsonObjectString(jsonObject, propTime);
-                String logFileName = GetJsonObjectString(jsonObject, propFilename);
                 String makePath = GetJsonObjectString(jsonObject, propMakePath);
                 String makeFileName = GetJsonObjectString(jsonObject, propMakeFileName);
-                String fullPath = makePath + makeFileName;
                 if(makeFileName == "" || makePath == "" || time == ""){
                     throw new Exception("로그모니터링의 설정파일은 makeFileName, makePath, time 항목이 필수입니다 <br/>");
                 }
@@ -488,7 +486,7 @@ public class Methods {
 
 
 
-    public String ReadAndInitLimitList(Slack slack) throws Exception {
+    public String ReadAndInitLimitList(SlackVO slackVO) throws Exception {
 
         try {
 
@@ -516,9 +514,9 @@ public class Methods {
                     String strLimitDate = data.split(" ")[0];
                     String keyword = data.split(" ")[1];
                     String fileNmae = data.split(" ")[2];
-                    Long limitTime = Long.parseLong(slack.getLimitTime());
+                    Long limitTime = Long.parseLong(slackVO.getLimitTime());
 
-                    if (!fileNmae.equals(slack.getLogFileName()) || !keyword.equals(slack.getKeyword())) {
+                    if (!fileNmae.equals(slackVO.getLogFileName()) || !keyword.equals(slackVO.getKeyword())) {
                         continue;
                     }
 
@@ -538,7 +536,7 @@ public class Methods {
         }
     }
 
-    public ArrayList<String> ReadAndInitLimitListReturnArrayList(Slack slack) throws Exception {
+    public ArrayList<String> ReadAndInitLimitListReturnArrayList(SlackVO slackVO) throws Exception {
 
         try {
 
@@ -565,9 +563,9 @@ public class Methods {
                     String strLimitDate = data.split(" ")[0];
                     String keyword = data.split(" ")[1];
                     String fileNmae = data.split(" ")[2];
-                    Long limitTime = Long.parseLong(slack.getLimitTime());
+                    Long limitTime = Long.parseLong(slackVO.getLimitTime());
 
-                    if(!fileNmae.equals(slack.getLogFileName()) || !keyword.equals(slack.getKeyword())){
+                    if(!fileNmae.equals(slackVO.getLogFileName()) || !keyword.equals(slackVO.getKeyword())){
                         continue;
                     }
 

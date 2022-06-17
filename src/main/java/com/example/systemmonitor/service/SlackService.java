@@ -1,7 +1,7 @@
 package com.example.systemmonitor.service;
 
 import com.example.systemmonitor.common.Methods;
-import com.example.systemmonitor.dto.Slack;
+import com.example.systemmonitor.vo.SlackVO;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
@@ -66,9 +66,9 @@ public  class SlackService<T> {
         }
     }
 
-    public void SendSlackMessage(String url, Slack slack) throws Exception{
+    public void SendSlackMessage(String url, SlackVO slackVO) throws Exception{
         Go(url);
-        InitRetryLimit(slack);
+        InitRetryLimit(slackVO);
     }
 
     public void test(String url) throws Exception{
@@ -116,10 +116,10 @@ public  class SlackService<T> {
     }
 
 
-    public void InitRetryLimit(Slack slack) throws Exception {
+    public void InitRetryLimit(SlackVO slackVO) throws Exception {
         Methods methods = new Methods();
-        ArrayList<String> limitList = methods.ReadAndInitLimitListReturnArrayList(slack);
-        methods.WriteLimitList(slack.getLogFileName(), slack.getKeyword(), slack.getLimitTime(), limitList);
+        ArrayList<String> limitList = methods.ReadAndInitLimitListReturnArrayList(slackVO);
+        methods.WriteLimitList(slackVO.getLogFileName(), slackVO.getKeyword(), slackVO.getLimitTime(), limitList);
 
     }
     public enum Method {
