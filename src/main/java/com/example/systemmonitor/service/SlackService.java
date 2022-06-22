@@ -31,8 +31,9 @@ public  class SlackService<T> {
     public String contentType = "";
 
     public SlackService() throws Exception {
-        this.contentType="application/json";
+        this.contentType="application/json; charset=UTF-8";
     }
+
 
     public void SetHeader(String name, String value){
         if(this.method == Method.POST.name()) {
@@ -98,11 +99,12 @@ public  class SlackService<T> {
 
         if(this.method == Method.POST.name()){
             String reqeustBody = "";
-            if(this.contentType == "application/json"){
+            if(this.contentType == "application/json; charset=UTF-8"){
                 Gson gson = new Gson();
                 reqeustBody = gson.toJson(jsonBody);
             }
-            httpPost.setEntity(new StringEntity(reqeustBody));
+            httpPost.addHeader("Content-Type", "application/json; charset=UTF-8");
+            httpPost.setEntity(new StringEntity(reqeustBody, "UTF-8"));
             HttpResponse httpResponse = httpClient.execute(httpPost);
             String html = EntityUtils.toString(httpResponse.getEntity());
             System.out.println(html);
@@ -118,8 +120,8 @@ public  class SlackService<T> {
 
     public void InitRetryLimit(SlackVO slackVO) throws Exception {
         Methods methods = new Methods();
-        ArrayList<String> limitList = methods.ReadAndInitLimitListReturnArrayList(slackVO);
-        methods.WriteLimitList(slackVO.getLogFileName(), slackVO.getKeyword(), slackVO.getLimitTime(), limitList);
+        ArrayList<String> limitList = methods.readAndInitLimitListReturnArrayList(slackVO);
+        methods.writeLimitList(slackVO.getLogFileName(), slackVO.getKeyword(), slackVO.getLimitTime(), limitList);
 
     }
     public enum Method {
