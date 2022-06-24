@@ -13,9 +13,9 @@ import java.util.LinkedHashMap;
 public class Util {
     private static String osName = System.getProperty("os.name").toLowerCase();
 
-    public static String InputFIle(String path, String fullPath, String content) throws Exception {
+    public static String inputFIle(String path, String fullPath, String content) throws Exception {
         StringBuilderPlus result = new StringBuilderPlus();
-        result.append(DateFormmat());
+        result.append(dateFormmat());
         try {
             File file = new File(path);
             if(!file.isDirectory()){
@@ -38,9 +38,9 @@ public class Util {
         return result.toString();
     }
 
-    public static String DeleteFIle(String path, String fileName) throws Exception {
+    public static String deleteFIle(String path, String fileName) throws Exception {
         StringBuilderPlus result = new StringBuilderPlus();
-        result.append(DateFormmat());
+        result.append(dateFormmat());
         try {
             File file = new File(path);
             if(!file.isDirectory()){
@@ -61,9 +61,9 @@ public class Util {
         return result.toString();
     }
 
-    public static String ExcuteShell(String sh) {
+    public static String excuteShell(String sh) {
         StringBuilderPlus result = new StringBuilderPlus();
-        result.append(DateFormmat());
+        result.append(dateFormmat());
 
         StringBuilderPlus sp = new StringBuilderPlus();
         Process p;
@@ -100,7 +100,7 @@ public class Util {
         return result.toString();
     }
 
-    public static String ReadFile(String fullPath) throws IOException {
+    public static String readFile(String fullPath) throws IOException {
         StringBuilderPlus result = new StringBuilderPlus();
         BufferedReader reader = new BufferedReader(
                 new FileReader(fullPath)
@@ -114,11 +114,11 @@ public class Util {
         return result.toString();
     }
 
-    public static String DateFormmat() {
+    public static String dateFormmat() {
         return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss | "));
     }
 
-    public static String GetJsonObjectString(JsonObject jsonObject, String key, String propPath){
+    public static String getJsonObjectString(JsonObject jsonObject, String key, String propPath){
         String result = "";
         if(jsonObject.get(key) != null) {
             result = jsonObject.get(key).toString().replace("\"", "");
@@ -142,7 +142,7 @@ public class Util {
         return result;
     }
 
-    public static String ConvertYamlToJson(String ymlFullPath) {
+    public static String convertYamlToJson(String ymlFullPath) {
         String json = "";
         File file = new File(ymlFullPath);
         Yaml yaml = new Yaml();
@@ -157,7 +157,7 @@ public class Util {
         return json;
     }
 
-    public static JsonObject ConvertStringToJsonObject(String content) throws Exception {
+    public static JsonObject convertStringToJsonObject(String content) throws Exception {
         JsonObject jsonObject = null;
         try {
             jsonObject = new Gson().fromJson(content, JsonObject.class);

@@ -66,51 +66,79 @@ public class Methods {
         String deleteCrontabString = "";
 
         try {
-            JsonObject setupObject = Util.ConvertStringToJsonObject(Util.ReadFile(setupFullPath));
+            JsonObject setupObject = Util.convertStringToJsonObject(Util.readFile(setupFullPath));
             JsonArray logMonitoring = setupObject.getAsJsonArray(propLogMornitoring);
             if( logMonitoring != null) {
                 for (JsonElement data : logMonitoring) {
                     JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
-                    String time = Util.GetJsonObjectString(jsonObject, propTime, propPath);
-                    String makePath = Util.GetJsonObjectString(jsonObject, propMakePath, propPath);
-                    String makeFileName = Util.GetJsonObjectString(jsonObject, propMakeFileName, propPath);
+                    String time = Util.getJsonObjectString(jsonObject, propTime, propPath);
+                    String makePath = Util.getJsonObjectString(jsonObject, propMakePath, propPath);
+                    String makeFileName = Util.getJsonObjectString(jsonObject, propMakeFileName, propPath);
                     if (makeFileName == "" || makePath == "" || time == "") {
                         throw new Exception("로그모니터링의 설정파일은 makeFileName, makePath, crontabTime 항목이 필수입니다 <br/>");
                     }
 
-                    result += Util.DeleteFIle(makePath, makeFileName.split("\\.")[0] + propAddPropertiesName);
-                    result += Util.DeleteFIle(makePath, makeFileName.split("\\.")[0] + propAddFinderName);
-                    result += Util.DeleteFIle(makePath, makeFileName.split("\\.")[0] + propLogStartupName);
-                    result += Util.DeleteFIle(setupPath, limitListFileName);
+                    result += Util.deleteFIle(makePath, makeFileName.split("\\.")[0] + propAddPropertiesName);
+                    result += Util.deleteFIle(makePath, makeFileName.split("\\.")[0] + propAddFinderName);
+                    result += Util.deleteFIle(makePath, makeFileName.split("\\.")[0] + propLogStartupName);
+                    result += Util.deleteFIle(setupPath, limitListFileName);
 
                     //기존 크론탭 제거
                     deleteCrontabString += deleteCtontabshString(makeFileName);
                 }
 
-                Util.InputFIle(setupPath, setupPath + deleteCrontabName, deleteCrontabString);
-                result += Util.ExcuteShell("chmod 771 " + setupPath + deleteCrontabName); //권한변경
-                result += Util.ExcuteShell(setupPath + deleteCrontabName);
+                Util.inputFIle(setupPath, setupPath + deleteCrontabName, deleteCrontabString);
+                result += Util.excuteShell("chmod 771 " + setupPath + deleteCrontabName); //권한변경
+                result += Util.excuteShell(setupPath + deleteCrontabName);
                 for (JsonElement data : logMonitoring) {
                     JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
-                    String logFileName = Util.GetJsonObjectString(jsonObject, propFilename, propPath);
+                    String logFileName = Util.getJsonObjectString(jsonObject, propFilename, propPath);
                     //실행중이런 Ps Kill
-                    result += Util.ExcuteShell("sudo kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
+                    result += Util.excuteShell("sudo kill -9 $(ps aux | grep '" + logFileName.split("\\.")[0].toString() + "' | awk '{print $2}')");
                 }
             }
+
+
+
+            try {
+                //헬스체크 설정 삭제
+                if(setupObject.getAsJsonObject().get(propHealthCheck) != null) {
+                    JsonArray jsonArray = setupObject.getAsJsonObject().get(propHealthCheck).getAsJsonArray();
+
+                    for (JsonElement data : jsonArray) {
+                        JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
+                        String time = Util.getJsonObjectString(jsonObject, propTime, propPath);
+                        String makePath = Util.getJsonObjectString(jsonObject, propMakePath, propPath);
+                        String makeFileName = Util.getJsonObjectString(jsonObject, propMakeFileName, propPath);
+                        result += Util.deleteFIle(makePath, makeFileName.split("\\.")[0] + propLogStartupName);
+
+                        //기존 크론탭 제거
+                        deleteCrontabString += deleteCtontabshString(makeFileName);
+                        Util.inputFIle(setupPath, setupPath + deleteCrontabName, deleteCrontabString);
+                        result += Util.excuteShell("chmod 771 " + setupPath + deleteCrontabName); //권한변경
+                        result += Util.excuteShell(setupPath + deleteCrontabName);
+                    }
+
+                }
+
+            }catch(Exception ex){
+                return ex.toString();
+            }
+
             try {
                 //영상상담 헬스체크 설정 삭제
                 if(setupObject.getAsJsonObject().get(propMvHealthCheck) != null) {
                     JsonObject jsonObject = setupObject.getAsJsonObject().get(propMvHealthCheck).getAsJsonObject();
-                    String time = Util.GetJsonObjectString(jsonObject, propTime, propPath);
-                    String makePath = Util.GetJsonObjectString(jsonObject, propMakePath, propPath);
-                    String makeFileName = Util.GetJsonObjectString(jsonObject, propMakeFileName, propPath);
-                    result += Util.DeleteFIle(makePath, makeFileName.split("\\.")[0] + propLogStartupName);
+                    String time = Util.getJsonObjectString(jsonObject, propTime, propPath);
+                    String makePath = Util.getJsonObjectString(jsonObject, propMakePath, propPath);
+                    String makeFileName = Util.getJsonObjectString(jsonObject, propMakeFileName, propPath);
+                    result += Util.deleteFIle(makePath, makeFileName.split("\\.")[0] + propLogStartupName);
 
                     //기존 크론탭 제거
                     deleteCrontabString += deleteCtontabshString(makeFileName);
-                    Util.InputFIle(setupPath, setupPath + deleteCrontabName, deleteCrontabString);
-                    result += Util.ExcuteShell("chmod 771 " + setupPath + deleteCrontabName); //권한변경
-                    result += Util.ExcuteShell(setupPath + deleteCrontabName);
+                    Util.inputFIle(setupPath, setupPath + deleteCrontabName, deleteCrontabString);
+                    result += Util.excuteShell("chmod 771 " + setupPath + deleteCrontabName); //권한변경
+                    result += Util.excuteShell(setupPath + deleteCrontabName);
                 }
             }catch(Exception ex){
                 return ex.toString();
@@ -157,9 +185,9 @@ public class Methods {
         }
 
         try {
-            result += Util.InputFIle(setupPath, setupFullPath, Util.ConvertYamlToJson(ymlFullPath));
-            result += Util.InputFIle(setupPath, limitListFullPath, "");
-            result += Util.ExcuteShell("chmod 771 " + setupFullPath);
+            result += Util.inputFIle(setupPath, setupFullPath, Util.convertYamlToJson(ymlFullPath));
+            result += Util.inputFIle(setupPath, limitListFullPath, "");
+            result += Util.excuteShell("chmod 771 " + setupFullPath);
 
         } catch (Exception ex) {
             return "셋팅 시 에러 발생 " + ex.toString();
@@ -167,11 +195,11 @@ public class Methods {
 
         try {
 
-            JsonObject jsonObject = Util.ConvertStringToJsonObject(Util.ConvertYamlToJson(ymlFullPath));
+            JsonObject jsonObject = Util.convertStringToJsonObject(Util.convertYamlToJson(ymlFullPath));
 
             result += logMornitoring(jsonObject);
-            //result += HealthCheck(jsonObject);
-            result += MvHealthCheck(jsonObject);
+            result += healthCheck(jsonObject);
+            result += mvHealthCheck(jsonObject);
             return result;
 
         } catch (Exception ex) {
@@ -193,13 +221,13 @@ public class Methods {
         String result = "";
 
         try {
-            JsonObject setupObject = Util.ConvertStringToJsonObject(Util.ReadFile(setupFullPath));
+            JsonObject setupObject = Util.convertStringToJsonObject(Util.readFile(setupFullPath));
             JsonArray logMonitoring = setupObject.getAsJsonArray(propLogMornitoring);
             for (JsonElement data : logMonitoring) {
                 JsonObject jsonObject = data.getAsJsonObject().get(propArrayKey).getAsJsonObject();
-                String logFileName = Util.GetJsonObjectString(jsonObject, propFilename, propPath);
+                String logFileName = Util.getJsonObjectString(jsonObject, propFilename, propPath);
 
-                String shResult = Util.ExcuteShell("ps -ef | grep "+logFileName+" | grep -v \"grep\"");
+                String shResult = Util.excuteShell("ps -ef | grep "+logFileName+" | grep -v \"grep\"");
                 if(shResult.split("\r\n")[1].replace("shell result=","").replace("\n","").isEmpty()){
                     result += logFileName + " => Status <font style='color:red;'>[No Active]</font>\r\n";
                 }else{
@@ -225,6 +253,9 @@ public class Methods {
          */
         String result = "";
         JsonArray logMonitoring = jsonObject.getAsJsonArray(propLogMornitoring);
+        if( logMonitoring == null ){
+            return "LogMonitoring Not Use <br/>>";
+        }
         for (JsonElement data : logMonitoring) {
             result += addFinderShell(data); //Find 로직
             result += addLogMonitoringShell(data); //로그모니터링 시작설정
@@ -239,12 +270,12 @@ public class Methods {
         String addCrontabString = "";
         try {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
-            String filename = Util.GetJsonObjectString(jsonObject, propFilename, propPath);
-            String path = Util.GetJsonObjectString(jsonObject, propPath, propPath);
-            String makeFileName = Util.GetJsonObjectString(jsonObject, propMakeFileName, propPath);
-            String makePath = Util.GetJsonObjectString(jsonObject, propMakePath, propPath);
+            String filename = Util.getJsonObjectString(jsonObject, propFilename, propPath);
+            String path = Util.getJsonObjectString(jsonObject, propPath, propPath);
+            String makeFileName = Util.getJsonObjectString(jsonObject, propMakeFileName, propPath);
+            String makePath = Util.getJsonObjectString(jsonObject, propMakePath, propPath);
 
-            String time = Util.GetJsonObjectString(jsonObject, propTime, propPath);
+            String time = Util.getJsonObjectString(jsonObject, propTime, propPath);
             if (filename == "" || path == "" || time == "" || makeFileName =="" || makePath=="") {
                 throw new Exception("로그모니터링의 설정파일은 filename, path, time, makeFileName, makePath 항목이 필수입니다 <br/>");
             }
@@ -252,17 +283,14 @@ public class Methods {
             String fullPath = makePath + makeFileName.split("\\.")[0].toString() + propLogStartupName;
             StringBuilderPlus sh = setLogMornitoringString(path, makePath, filename, makeFileName);
 
-            result += Util.InputFIle(makePath, fullPath, sh.toString());
-
-            // 권한변경, 크론탭 추가
-            //result += ExcuteShell("chmod 771 " + fullPath) + AddCrontab(makePath, makeFileName, time);
-            result += Util.ExcuteShell("chmod 771 " + fullPath);
+            result += Util.inputFIle(makePath, fullPath, sh.toString());
+            result += Util.excuteShell("chmod 771 " + fullPath);
 
 
             addCrontabString += addCrontabshString(makePath, makeFileName, time);
-            Util.InputFIle(setupPath, setupPath + addCrontabName, addCrontabString);
-            result += Util.ExcuteShell("chmod 771 " + setupPath + addCrontabName); //권한변경
-            result += Util.ExcuteShell(setupPath + addCrontabName);
+            Util.inputFIle(setupPath, setupPath + addCrontabName, addCrontabString);
+            result += Util.excuteShell("chmod 771 " + setupPath + addCrontabName); //권한변경
+            result += Util.excuteShell(setupPath + addCrontabName);
 
 
             return result;
@@ -306,9 +334,9 @@ public class Methods {
 
         try {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
-            String fileName = Util.GetJsonObjectString(jsonObject, propFilename, propPath);
-            String makePath = Util.GetJsonObjectString(jsonObject, propMakePath, propPath);
-            String makeFileName = Util.GetJsonObjectString(jsonObject, propMakeFileName, propPath);
+            String fileName = Util.getJsonObjectString(jsonObject, propFilename, propPath);
+            String makePath = Util.getJsonObjectString(jsonObject, propMakePath, propPath);
+            String makeFileName = Util.getJsonObjectString(jsonObject, propMakeFileName, propPath);
 
             if(fileName == "" || makePath == "" ){
                 throw new Exception("로그모니터링의 설정파일은 filename, path, time 항목이 필수입니다<br/>");
@@ -318,9 +346,9 @@ public class Methods {
             fileName = makePath + makeFileName.split("\\.")[0].toString() + propAddPropertiesName;
             StringBuilderPlus sh = setPropertiesString(keywords);
 
-            result += Util.InputFIle(makePath, fileName, sh.toString());
+            result += Util.inputFIle(makePath, fileName, sh.toString());
 
-            result += Util.ExcuteShell("chmod 771 " + fileName);
+            result += Util.excuteShell("chmod 771 " + fileName);
 
             return result;
 
@@ -354,9 +382,9 @@ public class Methods {
             StringBuilderPlus sh = setFindershString(systemVO);
             String fullPath = systemVO.getMakePath() + systemVO.getMakeFileName().split("\\.")[0].toString() + propAddFinderName;
 
-            result += Util.InputFIle(systemVO.getMakePath(), fullPath, sh.toString());
+            result += Util.inputFIle(systemVO.getMakePath(), fullPath, sh.toString());
 
-            result += Util.ExcuteShell("chmod 771 " + fullPath);
+            result += Util.excuteShell("chmod 771 " + fullPath);
 
             return result;
         } catch (Exception ex) {
@@ -410,50 +438,82 @@ public class Methods {
     // HealthCheck Mornitoring
     public String healthCheck(JsonObject jsonObject) {
         String result = "";
-        JsonArray healthCheck = jsonObject.getAsJsonArray("healthCheck");
+        JsonArray healthCheck = jsonObject.getAsJsonArray(propHealthCheck);
+        if(healthCheck == null){
+            return "HealthCheck Not Use <br/>";
+        }
         for (JsonElement data : healthCheck) {
             result += addHealthCheckShell(data);
         }
         return result;
     }
-
     public String addHealthCheckShell(JsonElement system) {
         String result = "";
         try {
             JsonObject jsonObject = system.getAsJsonObject().get(propArrayKey).getAsJsonObject();
             SystemVO systemVO = new SystemVO();
             setSystemVO(jsonObject, systemVO);
-
-
-            String fileName = Util.GetJsonObjectString(jsonObject, propMakeFileName, propPath);
-            String time = Util.GetJsonObjectString(jsonObject, propTime, propPath);
-            String makePath = Util.GetJsonObjectString(jsonObject, propMakePath, propPath);
-            String processName = jsonObject.get(propProcessName).toString().replace("\"", "");
-            String fullPath = makePath + fileName.split("\\.")[0].toString() + ".sh";
+            String startFileName = systemVO.getMakeFileName().split("\\.")[0].toString() + propLogStartupName;
+            String fullPath = systemVO.getMakePath() + startFileName.split("\\.")[0].toString() + ".sh";
 
 
             if (systemVO.getMakeFileName().isEmpty() || systemVO.getMakePath().isEmpty() || systemVO.getProcessName().isEmpty() || systemVO.getCrontabTime().isEmpty()) {
                 throw new Exception("Health Check 의 설정파일은 filename, makePilemakePath, ctontabTime, processName 항목이 필수입니다 <br/>");
             }
 
-            StringBuilderPlus sh = setLogMornitoringString(makePath, makePath, fileName, "");
+            String content = getPsHealthCheckString(systemVO);
 
-            result += Util.InputFIle(makePath, fullPath, sh.toString());
+            result += Util.inputFIle(systemVO.getMakePath(), fullPath, content);
+            result += Util.excuteShell("chmod 771 " + fullPath);
 
-            // 권한변경, 크론탭 추가
-            //result += excuteShell("chmod 722 " + fullPath) +
-            //         addCrontab(makePath, fileName, time);
+            String addCrontabString = "";
+            addCrontabString += addCrontabshString(systemVO.getMakePath(), systemVO.getMakeFileName(), systemVO.getCrontabTime());
+            Util.inputFIle(setupPath, setupPath + addCrontabName, addCrontabString);
+            result += Util.excuteShell("chmod 771 " + setupPath + addCrontabName); //권한변경
+            result += Util.excuteShell(setupPath + addCrontabName);
             return result;
 
         } catch (Exception ex) {
             return ex.toString();
         }
     }
+    public String getPsHealthCheckString(SystemVO systemVO){
+        String makeFileName =systemVO.getMakeFileName().split("\\.")[0].toString() + propLogStartupName;
 
+        StringBuilderPlus stringBuilderPlus = new StringBuilderPlus();
+        //Limit Time 초과된 키워드들 초기화
+        stringBuilderPlus.appendLine("param=\"{");
+        stringBuilderPlus.appendLine("  \\\"text\\\":\\\"[" + systemVO.getSystemName() + "|$(date '+%Y-%m-%d %H:%M:%S')] - Process Died !!! " + systemVO.getProcessName() + "\\\",");
+        stringBuilderPlus.appendLine("  \\\"keyword\\\":\\\"prcessCheck\\\",");
+        stringBuilderPlus.appendLine("  \\\"logFileName\\\":\\\""  + makeFileName + "\\\",");
+        stringBuilderPlus.appendLine("  \\\"webhookUrl\\\":\\\"" + systemVO.getWebhookUrl() + "\\\",");
+        stringBuilderPlus.appendLine("  \\\"limitTime\\\":\\\"" + systemVO.getCrontabTime() + "\\\"");
+        stringBuilderPlus.appendLine("}\"");
+        stringBuilderPlus.appendLine("retryInfoUrl=\"" + retryInfoUrl + "\"");
+        stringBuilderPlus.appendLine("sendUrl=\"" + sendSlackMessageUrl + "\"");
+        stringBuilderPlus.appendLine("if grep -q \"" + systemVO.getProcessName() + "\" <<< `ps -ef | grep " + systemVO.getProcessName() + " | grep -v grep | grep -v " + makeFileName + "`; then");
+        stringBuilderPlus.appendLine("  echo Catch !! ");
+        stringBuilderPlus.appendLine("else");
+        stringBuilderPlus.appendLine("  echo NotCatch !!");
+        stringBuilderPlus.appendLine("  if grep -q \"prcessCheck " + makeFileName + "\" <<< `curl $retryInfoUrl -H \"Content-Type: application/json\" -d \"$param\"` ; then ");
+        stringBuilderPlus.appendLine("      echo $(date '+%Y-%m-%dT%H:%M:%S') - \"retry Limit MvCounselling\" " + makeFileName);
+        stringBuilderPlus.appendLine("  else");
+        stringBuilderPlus.appendLine("      curl $sendUrl -H \"Content-Type: application/json\" -d \"$param\"");
+        stringBuilderPlus.appendLine("  fi");
+        stringBuilderPlus.appendLine("fi");
+
+
+
+        return stringBuilderPlus.toString();
+    }
     //MvMonitoring
-    public String MvHealthCheck(JsonElement mvSystem){
+    public String mvHealthCheck(JsonElement mvSystem){
         String result = "";
         try {
+            JsonElement jsonElement = mvSystem.getAsJsonObject().get(propMvHealthCheck);
+            if(jsonElement == null){
+                return "mvHealthCheck Not Use <br/>";
+            }
             JsonObject jsonObject = mvSystem.getAsJsonObject().get(propMvHealthCheck).getAsJsonObject();
             SystemVO systemVO = new SystemVO();
             setSystemVO(jsonObject, systemVO);
@@ -466,14 +526,14 @@ public class Methods {
 
             String content = getMvHealthCheckString(systemVO);
 
-            result += Util.InputFIle(systemVO.getMakePath(), fullPath, content.toString());
-            result += Util.ExcuteShell("chmod 771 " + fullPath);
+            result += Util.inputFIle(systemVO.getMakePath(), fullPath, content.toString());
+            result += Util.excuteShell("chmod 771 " + fullPath);
 
             String addCrontabString = "";
             addCrontabString += addCrontabshString(systemVO.getMakePath(), systemVO.getMakeFileName(), systemVO.getCrontabTime());
-            Util.InputFIle(setupPath, setupPath + addCrontabName, addCrontabString);
-            result += Util.ExcuteShell("chmod 771 " + setupPath + addCrontabName); //권한변경
-            result += Util.ExcuteShell(setupPath + addCrontabName);
+            Util.inputFIle(setupPath, setupPath + addCrontabName, addCrontabString);
+            result += Util.excuteShell("chmod 771 " + setupPath + addCrontabName); //권한변경
+            result += Util.excuteShell(setupPath + addCrontabName);
 
             return result;
 
@@ -610,7 +670,7 @@ public class Methods {
                 result.appendLine(limit);
             }
             result.appendLine(LocalDateTime.now().toString() + " " + keyword + " " + filename);
-            Util.InputFIle(setupPath, limitListFullPath, result.toString());
+            Util.inputFIle(setupPath, limitListFullPath, result.toString());
 
         } catch (Exception ex) {
             throw new Exception(ex.getMessage());
@@ -618,15 +678,15 @@ public class Methods {
     }
 
     private void setSystemVO(JsonObject jsonObject, SystemVO systemVO) {
-        systemVO.setFileName(Util.GetJsonObjectString(jsonObject, propFilename, propPath));
-        systemVO.setPath(Util.GetJsonObjectString(jsonObject, propPath, propPath));
-        systemVO.setMakePath(Util.GetJsonObjectString(jsonObject, propMakePath, propPath));
-        systemVO.setMakeFileName(Util.GetJsonObjectString(jsonObject, propMakeFileName, propPath));
-        systemVO.setWebhookUrl(Util.GetJsonObjectString(jsonObject, propWebHookUrl, propPath));
-        systemVO.setLimitTime(Util.GetJsonObjectString(jsonObject, propLimitTime, propPath));
-        systemVO.setSystemName(Util.GetJsonObjectString(jsonObject, propSystemName, propPath));
-        systemVO.setCrontabTime(Util.GetJsonObjectString(jsonObject, propTime, propPath));
-        systemVO.setProcessName(Util.GetJsonObjectString(jsonObject, propProcessName, propPath));
+        systemVO.setFileName(Util.getJsonObjectString(jsonObject, propFilename, propPath));
+        systemVO.setPath(Util.getJsonObjectString(jsonObject, propPath, propPath));
+        systemVO.setMakePath(Util.getJsonObjectString(jsonObject, propMakePath, propPath));
+        systemVO.setMakeFileName(Util.getJsonObjectString(jsonObject, propMakeFileName, propPath));
+        systemVO.setWebhookUrl(Util.getJsonObjectString(jsonObject, propWebHookUrl, propPath));
+        systemVO.setLimitTime(Util.getJsonObjectString(jsonObject, propLimitTime, propPath));
+        systemVO.setSystemName(Util.getJsonObjectString(jsonObject, propSystemName, propPath));
+        systemVO.setCrontabTime(Util.getJsonObjectString(jsonObject, propTime, propPath));
+        systemVO.setProcessName(Util.getJsonObjectString(jsonObject, propProcessName, propPath));
 
     }
 

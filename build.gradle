@@ -7,17 +7,18 @@ plugins {
 
 
 group = 'com.example'
-version = '0.0.1-SNAPSHOT'
+version = '2022.06.23.0'
 sourceCompatibility = '1.8'
+archivesBaseName="SystemMonitoring"
 
 war {
-    archivesBaseName="demotest2"
     archiveFileName="demotest2.war"
     archiveVersion="0.0.0.0"
 }
 
 jar {
     manifest { // 빌드시 Main-Class 설정
+        archiveFileName="SystemMonitoring"
         attributes 'Main-Class': 'com.example.systemmonitor.SystemMonitorApplication'
     }
 
@@ -36,6 +37,8 @@ repositories {
 }
 
 dependencies {
+    implementation 'commons-io:commons-io:2.8.0'
+    implementation 'commons-fileupload:commons-fileupload:1.4'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.apache.httpcomponents:httpclient:4.5.13'
     implementation 'org.yaml:snakeyaml:1.21'

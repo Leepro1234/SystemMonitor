@@ -43,14 +43,14 @@ public  class SlackService<T> {
         }
     }
 
-    public void SetMethod(Method method){
+    public void setMethod(Method method){
         this.method = method.toString();
     }
 
-    public void SetJsonBody(String key, String value){
+    public void setJsonBody(String key, String value){
         jsonBody.addProperty(key, value);
     }
-    public void SetJsonBody(T value){
+    public void setJsonBody(T value){
         Gson gson = new Gson();
 
         String jsonString = gson.toJson(value);
@@ -58,7 +58,7 @@ public  class SlackService<T> {
         jsonBody =  gson.fromJson(jsonString, JsonObject.class);
     }
 
-    public void SetContentType(String value){
+    public void setContentType(String value){
         this.contentType=value;
         if(this.method == Method.POST.name()) {
             this.httpPost.addHeader("Content-Type", value);
@@ -67,16 +67,16 @@ public  class SlackService<T> {
         }
     }
 
-    public void SendSlackMessage(String url, SlackVO slackVO) throws Exception{
-        Go(url);
-        InitRetryLimit(slackVO);
+    public void sendSlackMessage(String url, SlackVO slackVO) throws Exception{
+        go(url);
+        initRetryLimit(slackVO);
     }
 
     public void test(String url) throws Exception{
-        Go(url);
+        go(url);
     }
 
-    public void Go(String url) throws Exception {
+    public void go(String url) throws Exception {
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectionRequestTimeout(10 * 1000)
                 .setConnectTimeout(10 * 1000)
@@ -118,7 +118,7 @@ public  class SlackService<T> {
     }
 
 
-    public void InitRetryLimit(SlackVO slackVO) throws Exception {
+    public void initRetryLimit(SlackVO slackVO) throws Exception {
         Methods methods = new Methods();
         ArrayList<String> limitList = methods.readAndInitLimitListReturnArrayList(slackVO);
         methods.writeLimitList(slackVO.getLogFileName(), slackVO.getKeyword(), slackVO.getLimitTime(), limitList);

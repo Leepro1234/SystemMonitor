@@ -33,7 +33,7 @@ public class MvCounselling {
         if(!isInRoom(createRommRes)){
             return false;
         }
-        return false;
+        return true;
     }
 
     public ResponseVO isCreateRoom(){

@@ -9,7 +9,6 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -39,17 +38,17 @@ public class NetworkCommModule {
 
     }
 
-    public void Go(String targetUrl) throws Exception {
-        this.Go(targetUrl, new ArrayList<NameValuePair>());
+    public void go(String targetUrl) throws Exception {
+        this.go(targetUrl, new ArrayList<NameValuePair>());
     }
-    public void Go(String targetUrl, List<NameValuePair> params) throws Exception {
+    public void go(String targetUrl, List<NameValuePair> params) throws Exception {
         if(params.size() == 0){
-            this.Go(targetUrl, params, "GET");
+            this.go(targetUrl, params, "GET");
         }else{
-            this.Go(targetUrl, params, "POST");
+            this.go(targetUrl, params, "POST");
         }
     }
-    public void Go(String targetUrl, List<NameValuePair> params , String method) throws Exception {
+    public void go(String targetUrl, List<NameValuePair> params , String method) throws Exception {
         TrustManager[] trustAllCerts = new TrustManager[] {
                 (TrustManager) new X509TrustManager() {
                     public X509Certificate[] getAcceptedIssuers() {
@@ -107,7 +106,7 @@ public class NetworkCommModule {
         }
     }
 
-    public void Close() {
+    public void close() {
         try {
             this.client.close();
         } catch (IOException e) {
